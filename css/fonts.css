@@ -1,0 +1,28 @@
+/* Fontes hospedadas localmente (Fraunces + Manrope) para funcionar 100% offline.
+   Arquivos são fontes variáveis do Google Fonts — cada @font-face abaixo aponta
+   para o mesmo arquivo físico, igual à técnica usada pelo próprio Google Fonts,
+   e o navegador seleciona a instância de peso correta (eixo "wght"). */
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../fonts/manrope-variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('../fonts/fraunces-normal-variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: italic;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('../fonts/fraunces-italic-variable.woff2') format('woff2');
+}
