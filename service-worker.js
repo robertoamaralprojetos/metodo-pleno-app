@@ -3,7 +3,7 @@
 // sem internet). Estratégia: cache-first para assets estáticos, com atualização em
 // segundo plano; index.html sempre disponível offline como fallback de navegação.
 
-const CACHE_VERSION = 'metodo-pleno-v2';
+const CACHE_VERSION = 'metodo-pleno-v4';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -12,11 +12,15 @@ const PRECACHE_URLS = [
   './css/fonts.css',
   './assets/imagens/logo_metodo_pleno_transparente.png',
   './js/utils.js',
+  './js/constants.js',
   './js/db.js',
   './js/evaluation-data.js',
   './js/charts.js',
+  './js/rest-timer.js',
   './js/students.js',
   './js/state.js',
+  './js/registration.js',
+  './js/anamnesis.js',
   './js/planning.js',
   './js/execution.js',
   './js/dashboard.js',
