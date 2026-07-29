@@ -252,6 +252,42 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-check-row{ display:grid; grid-template-columns:1fr 1fr 1fr 1.4fr; gap:10px; }
 @media (max-width:700px){ .mp-check-row{ grid-template-columns:1fr 1fr; } }
 
+/* ---------- Cronômetro de descanso ---------- */
+.mp-timer{
+  background:var(--fundo); border:1px solid var(--borda); border-radius:10px;
+  padding:12px 14px; margin-top:12px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  transition:background .2s ease, border-color .2s ease;
+}
+.mp-timer-display{ font-family:'Fraunces',serif; font-weight:600; font-size:26px; color:var(--verde-principal); min-width:80px; }
+.mp-timer-controls{ display:flex; gap:8px; flex-wrap:wrap; }
+.mp-timer--done{ border-color:var(--alerta); animation: mp-timer-flash 1s ease-in-out infinite; }
+.mp-timer--done .mp-timer-display{ color:var(--alerta); }
+@keyframes mp-timer-flash{ 0%,100%{ background:var(--fundo); } 50%{ background:var(--alerta-fundo); } }
+
+/* ---------- Cadastro do Aluno: dias/horários ---------- */
+.mp-schedule-row{
+  display:flex; align-items:center; gap:12px; padding:7px 0; border-bottom:1px solid #EEEDE4;
+}
+.mp-schedule-row:last-child{ border-bottom:none; }
+.mp-schedule-check{ display:flex; align-items:center; gap:8px; font-size:13.5px; min-width:110px; cursor:pointer; color:var(--texto); }
+.mp-schedule-check input{ width:auto; }
+.mp-schedule-row input[type=time]{ width:130px; }
+.mp-schedule-row input[type=time]:disabled{ opacity:.4; }
+
+/* ---------- Anamnese ---------- */
+.mp-anam-question{ padding:14px 0; border-bottom:1px solid #EEEDE4; }
+.mp-anam-question:last-of-type{ border-bottom:none; }
+.mp-anam-question__text{ font-size:14px; font-weight:600; color:var(--texto); margin-bottom:4px; }
+.mp-yesno{ display:flex; gap:8px; }
+.mp-yesno-btn{
+  flex:0 0 auto; padding:7px 20px; border-radius:8px; border:1px solid var(--borda);
+  background:#fff; font-weight:700; font-size:13px; cursor:pointer; color:var(--texto-suave);
+  font-family:'Manrope',sans-serif;
+}
+.mp-yesno-btn--active-yes{ background:var(--verde-principal); border-color:var(--verde-principal); color:#fff; }
+.mp-yesno-btn--active-no{ background:var(--alerta); border-color:var(--alerta); color:#fff; }
+
 .mp-print-only{ display:none; }
 @media print{
   body *{ visibility:hidden; }
@@ -262,7 +298,7 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   .mp-print-blank{ min-width:60px; height:22px; }
 }
 
-/* ---------- Modal genérico (confirmações, editar aluno) ---------- */
+/* ---------- Modal genérico (confirmações) ---------- */
 .modal-overlay{
   position: fixed; inset: 0;
   background: rgba(21,34,25,.55);
