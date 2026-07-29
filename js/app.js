@@ -29,6 +29,8 @@ function render() {
     bindHeaderEvents();
     const contentEl = document.getElementById('mp-tabcontent');
     if (AppState.currentId) {
+      if (AppState.activeTab === 'cadastro') { RegistrationView.bindEvents(contentEl); }
+      if (AppState.activeTab === 'anamnese') { AnamnesisView.bindEvents(contentEl); }
       if (AppState.activeTab === 'plano') { PlanningView.bindEvents(contentEl); }
       if (AppState.activeTab === 'registro') { ExecutionView.bindEvents(contentEl); }
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
@@ -67,7 +69,6 @@ function renderHeader() {
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
       <div class="mp-student-bar">
         ${AppState.students.length ? `<select id="mp-select-student">${options}</select>` : '<span style="color:rgba(251,250,246,.7);font-size:13.5px;">Nenhum aluno cadastrado ainda —</span>'}
-        ${AppState.currentId ? '<button class="mp-btn mp-btn-outline" id="mp-edit-student" type="button">✎ Editar aluno</button>' : ''}
         <input id="mp-new-student" type="text" placeholder="Nome do novo aluno" style="min-width:180px;">
         <button class="mp-btn mp-btn-gold" id="mp-add-student" type="button">+ Adicionar aluno</button>
         ${AppState.students.length ? '<button class="mp-btn mp-btn-outline" id="mp-export-csv" type="button">Exportar sessões (CSV)</button>' : ''}
@@ -79,6 +80,8 @@ function renderHeader() {
       </div>
       ${AppState.currentId ? `
       <div class="mp-tabs">
+        <button class="mp-tab ${AppState.activeTab === 'cadastro' ? 'active' : ''}" data-tab="cadastro">Cadastro do Aluno</button>
+        <button class="mp-tab ${AppState.activeTab === 'anamnese' ? 'active' : ''}" data-tab="anamnese">Anamnese</button>
         <button class="mp-tab ${AppState.activeTab === 'plano' ? 'active' : ''}" data-tab="plano">Planejar Aula</button>
         <button class="mp-tab ${AppState.activeTab === 'registro' ? 'active' : ''}" data-tab="registro">Registro de Treino <span class="mp-tab-count">${AppState.data.sessions.length}</span></button>
         <button class="mp-tab ${AppState.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">Dashboard de Evolução</button>
@@ -95,6 +98,8 @@ function renderTabContent() {
       <p>Digite o nome do aluno acima e clique em "+ Adicionar aluno" para abrir a ficha individual de acompanhamento.</p>
     </div>`;
   }
+  if (AppState.activeTab === 'cadastro') return RegistrationView.renderHtml();
+  if (AppState.activeTab === 'anamnese') return AnamnesisView.renderHtml();
   if (AppState.activeTab === 'plano') return PlanningView.renderHtml();
   if (AppState.activeTab === 'registro') return ExecutionView.renderHtml();
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();
@@ -123,15 +128,6 @@ function exportSessionsCsv() {
 function bindHeaderEvents() {
   const selStudent = document.getElementById('mp-select-student');
   if (selStudent) selStudent.addEventListener('change', (e) => switchStudent(e.target.value));
-
-  const editBtn = document.getElementById('mp-edit-student');
-  if (editBtn) editBtn.addEventListener('click', () => {
-    StudentsData.openEditStudentModal(currentStudent(), async (removed) => {
-      AppState.students = await StudentsData.listStudents();
-      if (removed) { await switchStudent(AppState.students[0]?.id || null); }
-      else render();
-    });
-  });
 
   const addBtn = document.getElementById('mp-add-student');
   const newInput = document.getElementById('mp-new-student');

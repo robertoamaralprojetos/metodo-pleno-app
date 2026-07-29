@@ -2,9 +2,12 @@
 
 function fmtDate(iso) { return Utils.formatDateBR(iso); }
 
+const restLabel = Utils.formatRestLabel;
+
 function planRenderHtml() {
   if (!AppState.planDate) AppState.planDate = Utils.todayISO();
   const planDate = AppState.planDate;
+  const student = currentStudent();
   const ex = exerciseList();
   const datalist = '<datalist id="mp-ex-list-plano">' + ex.map((e) => `<option value="${Utils.escapeHtml(e)}">`).join('') + '</datalist>';
   const plan = getPlanByDate(planDate);
@@ -23,6 +26,7 @@ function planRenderHtml() {
       <td>${Utils.escapeHtml(it.exerciseName)}</td>
       <td>${it.series}×${it.reps}</td>
       <td>${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''}</td>
+      <td>${restLabel(it.restSeconds)}</td>
       <td>${it.completed ? '<span class="mp-pill mp-pill-leve">concluído</span>' : '<span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">pendente</span>'}</td>
       <td><button class="mp-btn-danger" data-del-planitem="${it.id}" type="button">Remover</button></td>
     </tr>`).join('');
@@ -30,7 +34,7 @@ function planRenderHtml() {
   const printRows = itens.map((it, i) => `
     <tr>
       <td>${i + 1}. ${Utils.escapeHtml(it.exerciseName)}</td>
-      <td>${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''}</td>
+      <td>${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''} · desc: ${restLabel(it.restSeconds)}</td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
@@ -43,14 +47,23 @@ function planRenderHtml() {
     <div class="mp-sub">Monte a sequência de exercícios antes da aula. Na hora de dar a aula, é só abrir "Registro de Treino" e marcar cada item conforme for executando — sem digitar tudo de novo.</div>
     <div class="mp-form-row mp-row2" style="margin-bottom:18px;">
       <div class="mp-field"><label>Data da aula</label><input type="date" id="mp-plan-date" value="${planDate}"></div>
-      ${otherPlans.length ? `
+      <div class="mp-field"><label>Estágio de treino do aluno</label>
+        <select id="mp-plan-stage">
+          <option value="">Não definido</option>
+          ${STAGE_OPTIONS.map((s) => `<option value="${s.value}" ${student?.stage === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${otherPlans.length ? `
+    <div class="mp-form-row mp-row2" style="margin-bottom:18px;">
       <div class="mp-field"><label>Reaproveitar plano anterior</label>
         <div style="display:flex;gap:8px;">
           <select id="mp-plan-base" class="mp-select-inline" style="flex:1;">${otherPlansOptions}</select>
           <button class="mp-btn mp-btn-ghost mp-btn-sm" id="mp-plan-duplicate" type="button">Usar como base</button>
         </div>
-      </div>` : ''}
-    </div>
+      </div>
+      <div></div>
+    </div>` : ''}
 
     <form id="mp-planitem-form">
       <div class="mp-form-row">
@@ -69,7 +82,15 @@ function planRenderHtml() {
             <option value="seg">segundos</option>
           </select>
         </div>
-        <div></div>
+        <div class="mp-field">
+          <label>Tempo de descanso</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" id="mp-p-rest-min" min="0" step="1" value="1" style="width:70px;" aria-label="Minutos">
+            <span style="font-size:12.5px;color:var(--texto-suave);">min</span>
+            <input type="number" id="mp-p-rest-sec" min="0" max="59" step="5" value="0" style="width:70px;" aria-label="Segundos">
+            <span style="font-size:12.5px;color:var(--texto-suave);">seg</span>
+          </div>
+        </div>
       </div>
       <div class="mp-form-actions">
         <button type="button" id="mp-planitem-submit" class="mp-btn mp-btn-ghost" style="border-color:var(--verde-suave);color:var(--verde-principal);">+ Adicionar ao plano</button>
@@ -86,7 +107,7 @@ function planRenderHtml() {
     ${itens.length ? `
     <div style="overflow-x:auto;">
     <table class="mp-table">
-      <thead><tr><th>#</th><th>Exercício</th><th>Séries×Rep</th><th>Carga</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>#</th><th>Exercício</th><th>Séries×Rep</th><th>Carga</th><th>Descanso</th><th>Status</th><th></th></tr></thead>
       <tbody>${itemRows}</tbody>
     </table>
     </div>` : ''}
@@ -102,9 +123,16 @@ function planRenderHtml() {
   </div>`;
 }
 
-function bindEvents(container) {
+function planBindEvents(container) {
   const planDateInput = container.querySelector('#mp-plan-date');
   if (planDateInput) planDateInput.addEventListener('change', () => { AppState.planDate = planDateInput.value; render(); });
+
+  const stageSelect = container.querySelector('#mp-plan-stage');
+  if (stageSelect) stageSelect.addEventListener('change', async () => {
+    await updateCurrentStudent({ stage: stageSelect.value });
+    AppState.students = await StudentsData.listStudents();
+    Utils.toast('Estágio de treino atualizado ✓', 'success');
+  });
 
   const planDupBtn = container.querySelector('#mp-plan-duplicate');
   if (planDupBtn) planDupBtn.addEventListener('click', async () => {
@@ -125,6 +153,8 @@ function bindEvents(container) {
     planItemBtn.addEventListener('click', async () => {
       const exerciseName = container.querySelector('#mp-p-exercicio').value.trim();
       if (!exerciseName) { Utils.toast('Preencha o nome do exercício.', 'error'); return; }
+      const restMin = parseInt(container.querySelector('#mp-p-rest-min').value, 10) || 0;
+      const restSec = parseInt(container.querySelector('#mp-p-rest-sec').value, 10) || 0;
       const item = {
         id: dbUuid(),
         exerciseName,
@@ -132,6 +162,7 @@ function bindEvents(container) {
         reps: parseInt(container.querySelector('#mp-p-reps').value, 10) || 0,
         load: parseFloat(container.querySelector('#mp-p-carga').value) || 0,
         unit: container.querySelector('#mp-p-unidade').value,
+        restSeconds: restMin * 60 + restSec,
         completed: false,
         sessionId: null,
       };
@@ -156,4 +187,4 @@ function bindEvents(container) {
   if (printBtn) printBtn.addEventListener('click', () => window.print());
 }
 
-window.PlanningView = { renderHtml: planRenderHtml, bindEvents };
+window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };

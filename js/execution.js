@@ -9,6 +9,10 @@ function borgPillClass(v) {
   return 'mp-pill-alto';
 }
 
+function defaultRestSeconds(it) {
+  return it.restSeconds || 60;
+}
+
 function execRenderHtml() {
   if (!AppState.execDate) AppState.execDate = Utils.todayISO();
   const execDate = AppState.execDate;
@@ -34,7 +38,7 @@ function execRenderHtml() {
 
   const checklistCards = pendentes.map((it) => `
     <div class="mp-check-card" id="mp-check-${it.id}">
-      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''}</span></div>
+      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''} · descanso ${Utils.formatRestLabel(it.restSeconds)}</span></div>
       <div class="mp-check-row">
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
@@ -42,6 +46,17 @@ function execRenderHtml() {
         <div class="mp-field">
           <label>Borg <span id="mp-real-borg-num-${it.id}">5</span></label>
           <input type="range" min="0" max="10" step="1" value="5" id="mp-real-borg-${it.id}" data-borg-live="${it.id}">
+        </div>
+      </div>
+      <div class="mp-field" style="margin-top:10px;">
+        <label>Observações (opcional)</label>
+        <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc."></textarea>
+      </div>
+      <div class="mp-timer" data-item-id="${it.id}">
+        <div class="mp-timer-display" id="mp-timer-display-${it.id}">${Utils.formatMMSS(defaultRestSeconds(it))}</div>
+        <div class="mp-timer-controls">
+          <button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" data-timer-start="${it.id}">▶ Iniciar descanso</button>
+          <button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" data-timer-reset="${it.id}">↺ Resetar</button>
         </div>
       </div>
       <div class="mp-form-actions">
@@ -53,12 +68,15 @@ function execRenderHtml() {
     ? `<div class="mp-sub" style="margin-top:16px;">Concluídos hoje: ${concluidos.map((it) => Utils.escapeHtml(it.exerciseName)).join(', ')}</div>`
     : '';
 
+  const student = currentStudent();
+
   return `
   <div class="mp-card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <h3 style="margin-bottom:0;">Executar plano da aula</h3>
       <div class="mp-field" style="margin:0;"><input type="date" id="mp-exec-date" value="${execDate}"></div>
     </div>
+    <div style="margin-top:10px;"><span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span></div>
     <div class="mp-sub" style="margin-top:10px;">${planItens.length ? 'Marque cada exercício conforme for aplicando — os valores já vêm preenchidos com o alvo planejado, é só ajustar.' : 'Nenhum plano criado para esta data. Vá em "Planejar Aula" para montar a sequência com antecedência, ou registre um exercício avulso abaixo.'}</div>
     ${pendentes.length ? checklistCards : (planItens.length ? '<div class="mp-sub" style="margin:0;">Todos os exercícios planejados já foram concluídos hoje. 🎉</div>' : '')}
     ${concluidosList}
@@ -125,13 +143,36 @@ async function persistSession(session) {
   if (!ok) render();
 }
 
-function bindEvents(container) {
+function execBindEvents(container) {
   const execDateInput = container.querySelector('#mp-exec-date');
   if (execDateInput) execDateInput.addEventListener('change', () => { AppState.execDate = execDateInput.value; render(); });
 
   container.querySelectorAll('[data-borg-live]').forEach((slider) => {
     slider.addEventListener('input', () => {
       container.querySelector('#mp-real-borg-num-' + slider.dataset.borgLive).textContent = slider.value;
+    });
+  });
+
+  container.querySelectorAll('.mp-timer').forEach((timerEl) => {
+    const itemId = timerEl.dataset.itemId;
+    const plan = getPlanByDate(AppState.execDate);
+    const item = plan?.items.find((it) => it.id === itemId);
+    RestTimer.rehydrate(itemId, defaultRestSeconds(item || {}));
+  });
+  container.querySelectorAll('[data-timer-start]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const itemId = btn.dataset.timerStart;
+      const plan = getPlanByDate(AppState.execDate);
+      const item = plan?.items.find((it) => it.id === itemId);
+      RestTimer.toggle(itemId, defaultRestSeconds(item || {}));
+    });
+  });
+  container.querySelectorAll('[data-timer-reset]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const itemId = btn.dataset.timerReset;
+      const plan = getPlanByDate(AppState.execDate);
+      const item = plan?.items.find((it) => it.id === itemId);
+      RestTimer.reset(itemId, defaultRestSeconds(item || {}));
     });
   });
 
@@ -145,6 +186,7 @@ function bindEvents(container) {
       const realReps = parseInt(container.querySelector('#mp-real-reps-' + itemId).value, 10) || 0;
       const realCarga = parseFloat(container.querySelector('#mp-real-carga-' + itemId).value) || 0;
       const realBorg = parseInt(container.querySelector('#mp-real-borg-' + itemId).value, 10) || 0;
+      const realObs = container.querySelector('#mp-real-obs-' + itemId)?.value.trim() || '';
       const session = {
         id: dbUuid(),
         ts: Date.now(),
@@ -156,11 +198,12 @@ function bindEvents(container) {
         load: realCarga,
         unit: item.unit,
         borg: realBorg,
-        notes: '',
+        notes: realObs,
         planItemId: item.id,
       };
       item.completed = true;
       item.sessionId = session.id;
+      RestTimer.discard(itemId);
       AppState.data.sessions.push(session);
       render();
       Utils.toast(item.exerciseName + ' concluído ✓', 'success');
@@ -215,4 +258,4 @@ function bindEvents(container) {
   });
 }
 
-window.ExecutionView = { renderHtml: execRenderHtml, bindEvents, BORG_LABELS, borgPillClass };
+window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };

@@ -147,11 +147,11 @@ function drawIndiceChart(container) {
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 100 }));
 }
 
-function afterRender(container) {
+function evalAfterRender(container) {
   drawIndiceChart(container);
 }
 
-function bindEvents(container) {
+function evalBindEvents(container) {
   container.querySelectorAll('#mp-assess-form input, #mp-assess-form select').forEach((inp) => {
     inp.addEventListener('input', () => recomputePreview(container));
   });
@@ -196,4 +196,4 @@ function bindEvents(container) {
   });
 }
 
-window.EvaluationView = { renderHtml: evalRenderHtml, bindEvents, afterRender };
+window.EvaluationView = { renderHtml: evalRenderHtml, bindEvents: evalBindEvents, afterRender: evalAfterRender };

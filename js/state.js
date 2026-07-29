@@ -51,6 +51,15 @@ function currentStudent() {
   return AppState.students.find((s) => s.id === AppState.currentId) || null;
 }
 
+// Atualiza campos do aluno atual em memória e persiste no IndexedDB.
+async function updateCurrentStudent(patch) {
+  const student = currentStudent();
+  if (!student) return null;
+  Object.assign(student, patch);
+  await StudentsData.updateStudent(student);
+  return student;
+}
+
 function getPlanByDate(date) {
   return AppState.data.plans.find((p) => p.date === date) || null;
 }
@@ -78,6 +87,7 @@ window.stateInit = stateInit;
 window.switchStudent = switchStudent;
 window.addStudentQuick = addStudentQuick;
 window.currentStudent = currentStudent;
+window.updateCurrentStudent = updateCurrentStudent;
 window.getPlanByDate = getPlanByDate;
 window.ensurePlan = ensurePlan;
 window.persistPlan = persistPlan;

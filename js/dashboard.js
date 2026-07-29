@@ -94,7 +94,7 @@ function drawTrilha(container, byMonth) {
   target.appendChild(Charts.trilha(Object.keys(byMonth), assessByMonth));
 }
 
-function afterRender(container) {
+function dashAfterRender(container) {
   if (!AppState.data.sessions.length) return;
   const exSelect = container.querySelector('#mp-ex-select');
   const exercicio = exSelect ? exSelect.value : exerciseList()[0];
@@ -103,9 +103,9 @@ function afterRender(container) {
   drawTrilha(container, byMonth || {});
 }
 
-function bindEvents(container) {
+function dashBindEvents(container) {
   const exSelect = container.querySelector('#mp-ex-select');
   if (exSelect) exSelect.addEventListener('change', () => drawLoadChart(container, exSelect.value));
 }
 
-window.DashboardView = { renderHtml: dashRenderHtml, bindEvents, afterRender };
+window.DashboardView = { renderHtml: dashRenderHtml, bindEvents: dashBindEvents, afterRender: dashAfterRender };
