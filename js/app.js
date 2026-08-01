@@ -30,11 +30,13 @@ function render() {
     const contentEl = document.getElementById('mp-tabcontent');
     if (AppState.currentId) {
       if (AppState.activeTab === 'cadastro') { RegistrationView.bindEvents(contentEl); }
+      if (AppState.activeTab === 'pagamento') { PaymentsView.bindEvents(contentEl); }
       if (AppState.activeTab === 'anamnese') { AnamnesisView.bindEvents(contentEl); }
       if (AppState.activeTab === 'plano') { PlanningView.bindEvents(contentEl); }
       if (AppState.activeTab === 'registro') { ExecutionView.bindEvents(contentEl); }
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
       if (AppState.activeTab === 'avaliacao') { EvaluationView.bindEvents(contentEl); EvaluationView.afterRender(contentEl); }
+      if (AppState.activeTab === 'fisica') { PhysicalEvaluationView.bindEvents(contentEl); PhysicalEvaluationView.afterRender(contentEl); }
     }
   } catch (err) {
     console.error(err);
@@ -81,11 +83,13 @@ function renderHeader() {
       ${AppState.currentId ? `
       <div class="mp-tabs">
         <button class="mp-tab ${AppState.activeTab === 'cadastro' ? 'active' : ''}" data-tab="cadastro">Cadastro do Aluno</button>
+        <button class="mp-tab ${AppState.activeTab === 'pagamento' ? 'active' : ''}" data-tab="pagamento">Controle de Pagamento</button>
         <button class="mp-tab ${AppState.activeTab === 'anamnese' ? 'active' : ''}" data-tab="anamnese">Anamnese</button>
         <button class="mp-tab ${AppState.activeTab === 'plano' ? 'active' : ''}" data-tab="plano">Planejar Aula</button>
         <button class="mp-tab ${AppState.activeTab === 'registro' ? 'active' : ''}" data-tab="registro">Registro de Treino <span class="mp-tab-count">${AppState.data.sessions.length}</span></button>
         <button class="mp-tab ${AppState.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">Dashboard de Evolução</button>
         <button class="mp-tab ${AppState.activeTab === 'avaliacao' ? 'active' : ''}" data-tab="avaliacao">Avaliação Funcional <span class="mp-tab-count">${AppState.data.evaluations.length}</span></button>
+        <button class="mp-tab ${AppState.activeTab === 'fisica' ? 'active' : ''}" data-tab="fisica">Avaliação Física <span class="mp-tab-count">${AppState.data.physicalEvaluations.length}</span></button>
       </div>` : ''}
     </div>
   </div>`;
@@ -99,11 +103,13 @@ function renderTabContent() {
     </div>`;
   }
   if (AppState.activeTab === 'cadastro') return RegistrationView.renderHtml();
+  if (AppState.activeTab === 'pagamento') return PaymentsView.renderHtml();
   if (AppState.activeTab === 'anamnese') return AnamnesisView.renderHtml();
   if (AppState.activeTab === 'plano') return PlanningView.renderHtml();
   if (AppState.activeTab === 'registro') return ExecutionView.renderHtml();
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();
   if (AppState.activeTab === 'avaliacao') return EvaluationView.renderHtml();
+  if (AppState.activeTab === 'fisica') return PhysicalEvaluationView.renderHtml();
   return '';
 }
 

@@ -75,6 +75,19 @@ function addYearsISO(iso, years) {
   return `${y}-${m}-${day}`;
 }
 
+// Soma meses a uma data ISO, ajustando (clamp) para o último dia do mês de destino
+// quando o dia original não existe nele (ex: 31/01 + 1 mês = 28 ou 29/02, não 03/03).
+function addMonthsISO(iso, months) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const targetMonthFirst = new Date(y, m - 1 + months, 1);
+  const lastDay = new Date(targetMonthFirst.getFullYear(), targetMonthFirst.getMonth() + 1, 0).getDate();
+  const day = Math.min(d, lastDay);
+  const yy = targetMonthFirst.getFullYear();
+  const mm = String(targetMonthFirst.getMonth() + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 function daysUntil(iso) {
   const target = new Date(iso + 'T00:00:00');
   const today = new Date(todayISO() + 'T00:00:00');
@@ -154,6 +167,7 @@ window.Utils = {
   toast,
   confirmDialog,
   addDaysISO,
+  addMonthsISO,
   addYearsISO,
   daysUntil,
   formatBRL,

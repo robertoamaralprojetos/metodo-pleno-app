@@ -25,7 +25,7 @@ function planRenderHtml() {
       <td>${i + 1}</td>
       <td>${Utils.escapeHtml(it.exerciseName)}</td>
       <td>${it.series}×${it.reps}</td>
-      <td>${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''}</td>
+      <td>${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))}</td>
       <td>${restLabel(it.restSeconds)}</td>
       <td>${it.completed ? '<span class="mp-pill mp-pill-leve">concluído</span>' : '<span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">pendente</span>'}</td>
       <td><button class="mp-btn-danger" data-del-planitem="${it.id}" type="button">Remover</button></td>
@@ -34,7 +34,7 @@ function planRenderHtml() {
   const printRows = itens.map((it, i) => `
     <tr>
       <td>${i + 1}. ${Utils.escapeHtml(it.exerciseName)}</td>
-      <td>${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''} · desc: ${restLabel(it.restSeconds)}</td>
+      <td>${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · desc: ${restLabel(it.restSeconds)}</td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
@@ -45,6 +45,7 @@ function planRenderHtml() {
   <div class="mp-card">
     <h3>Planejar aula com antecedência</h3>
     <div class="mp-sub">Monte a sequência de exercícios antes da aula. Na hora de dar a aula, é só abrir "Registro de Treino" e marcar cada item conforme for executando — sem digitar tudo de novo.</div>
+    <div style="margin:-4px 0 14px;"><span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span></div>
     <div class="mp-form-row mp-row2" style="margin-bottom:18px;">
       <div class="mp-field"><label>Data da aula</label><input type="date" id="mp-plan-date" value="${planDate}"></div>
       <div class="mp-field"><label>Estágio de treino do aluno</label>
@@ -74,14 +75,7 @@ function planRenderHtml() {
       </div>
       ${datalist}
       <div class="mp-form-row mp-row2">
-        <div class="mp-field"><label>Unidade</label>
-          <select id="mp-p-unidade">
-            <option value="kg">kg</option>
-            <option value="nível">nível (elástico/máquina)</option>
-            <option value="peso corporal">peso corporal</option>
-            <option value="seg">segundos</option>
-          </select>
-        </div>
+        ${unitFieldHtml('mp-p', '', '', elasticColorList())}
         <div class="mp-field">
           <label>Tempo de descanso</label>
           <div style="display:flex;gap:6px;align-items:center;">
@@ -134,6 +128,8 @@ function planBindEvents(container) {
     Utils.toast('Estágio de treino atualizado ✓', 'success');
   });
 
+  bindUnitFieldEvents(container, 'mp-p');
+
   const planDupBtn = container.querySelector('#mp-plan-duplicate');
   if (planDupBtn) planDupBtn.addEventListener('click', async () => {
     const baseSelect = container.querySelector('#mp-plan-base');
@@ -155,13 +151,15 @@ function planBindEvents(container) {
       if (!exerciseName) { Utils.toast('Preencha o nome do exercício.', 'error'); return; }
       const restMin = parseInt(container.querySelector('#mp-p-rest-min').value, 10) || 0;
       const restSec = parseInt(container.querySelector('#mp-p-rest-sec').value, 10) || 0;
+      const { unit, unitDetail } = readUnitFieldValues(container, 'mp-p');
       const item = {
         id: dbUuid(),
         exerciseName,
         series: parseInt(container.querySelector('#mp-p-series').value, 10) || 0,
         reps: parseInt(container.querySelector('#mp-p-reps').value, 10) || 0,
         load: parseFloat(container.querySelector('#mp-p-carga').value) || 0,
-        unit: container.querySelector('#mp-p-unidade').value,
+        unit,
+        unitDetail,
         restSeconds: restMin * 60 + restSec,
         completed: false,
         sessionId: null,

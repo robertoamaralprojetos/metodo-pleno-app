@@ -76,6 +76,18 @@ function regRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Plano de aulas e cobrança</h3>
     <div class="mp-form-row mp-row2">
+      <div class="mp-field"><label>Atividade</label>
+        <select id="r-activity">
+          <option value="">Não definida</option>
+          ${ACTIVITY_TYPE_OPTIONS.map((a) => `<option value="${a.value}" ${student.activityType === a.value ? 'selected' : ''}>${a.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mp-field" id="r-activity-custom-wrap" style="${student.activityType === 'custom' ? '' : 'display:none;'}">
+        <label>Qual atividade?</label>
+        <input id="r-activity-custom" value="${Utils.escapeHtml(student.activityTypeCustom || '')}" placeholder="Ex: Alongamento terapêutico">
+      </div>
+    </div>
+    <div class="mp-form-row mp-row2">
       <div class="mp-field"><label>Valor da hora/aula (R$)</label><input type="number" min="0" step="0.01" id="r-rate" value="${student.hourlyRate ?? ''}"></div>
       <div class="mp-field"><label>Aulas contratadas por mês</label><input type="number" min="0" step="1" id="r-sessions" value="${student.monthlySessionsCount ?? ''}"></div>
     </div>
@@ -124,6 +136,12 @@ function regBindEvents(container) {
       if (ageDisplay) ageDisplay.value = age != null ? age + ' anos' : '—';
     });
   }
+
+  const activitySelect = container.querySelector('#r-activity');
+  const activityCustomWrap = container.querySelector('#r-activity-custom-wrap');
+  activitySelect?.addEventListener('change', () => {
+    activityCustomWrap.style.display = activitySelect.value === 'custom' ? '' : 'none';
+  });
 
   const rateInput = container.querySelector('#r-rate');
   const sessionsInput = container.querySelector('#r-sessions');
@@ -176,6 +194,8 @@ function regBindEvents(container) {
       email: container.querySelector('#r-email').value.trim(),
       emergencyContactName: container.querySelector('#r-ec-name').value.trim(),
       emergencyContactPhone: container.querySelector('#r-ec-phone').value.trim(),
+      activityType: container.querySelector('#r-activity').value,
+      activityTypeCustom: container.querySelector('#r-activity-custom')?.value.trim() || '',
       hourlyRate: Number(container.querySelector('#r-rate').value) || 0,
       monthlySessionsCount: Number(container.querySelector('#r-sessions').value) || 0,
       weekDays,

@@ -25,7 +25,7 @@ function execRenderHtml() {
       <td>${Utils.formatDateBR(s.date)}</td>
       <td>${Utils.escapeHtml(s.exerciseName)}</td>
       <td>${s.series}×${s.reps}</td>
-      <td>${s.load}${s.unit ? ' ' + Utils.escapeHtml(s.unit) : ''}</td>
+      <td>${s.load} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}</td>
       <td><span class="mp-pill ${borgPillClass(s.borg)}">${s.borg} · ${BORG_LABELS[s.borg]}</span></td>
       <td style="max-width:180px;color:var(--texto-suave);font-size:12.5px;">${Utils.escapeHtml(s.notes || '')}</td>
       <td><button class="mp-btn-danger" data-del-session="${s.id}" type="button">Excluir</button></td>
@@ -38,7 +38,7 @@ function execRenderHtml() {
 
   const checklistCards = pendentes.map((it) => `
     <div class="mp-check-card" id="mp-check-${it.id}">
-      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load}${it.unit ? ' ' + Utils.escapeHtml(it.unit) : ''} · descanso ${Utils.formatRestLabel(it.restSeconds)}</span></div>
+      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}</span></div>
       <div class="mp-check-row">
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
@@ -76,7 +76,10 @@ function execRenderHtml() {
       <h3 style="margin-bottom:0;">Executar plano da aula</h3>
       <div class="mp-field" style="margin:0;"><input type="date" id="mp-exec-date" value="${execDate}"></div>
     </div>
-    <div style="margin-top:10px;"><span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span>
+      <span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span>
+    </div>
     <div class="mp-sub" style="margin-top:10px;">${planItens.length ? 'Marque cada exercício conforme for aplicando — os valores já vêm preenchidos com o alvo planejado, é só ajustar.' : 'Nenhum plano criado para esta data. Vá em "Planejar Aula" para montar a sequência com antecedência, ou registre um exercício avulso abaixo.'}</div>
     ${pendentes.length ? checklistCards : (planItens.length ? '<div class="mp-sub" style="margin:0;">Todos os exercícios planejados já foram concluídos hoje. 🎉</div>' : '')}
     ${concluidosList}
@@ -95,14 +98,9 @@ function execRenderHtml() {
       ${datalist}
       <div class="mp-form-row mp-row2">
         <div class="mp-field"><label>Carga / Resistência</label><input type="number" id="mp-f-carga" min="0" step="0.5" value="0" required></div>
-        <div class="mp-field"><label>Unidade</label>
-          <select id="mp-f-unidade">
-            <option value="kg">kg</option>
-            <option value="nível">nível (elástico/máquina)</option>
-            <option value="peso corporal">peso corporal</option>
-            <option value="seg">segundos</option>
-          </select>
-        </div>
+      </div>
+      <div class="mp-form-row mp-row2">
+        ${unitFieldHtml('mp-f', '', '', elasticColorList())}
       </div>
       <div class="mp-field" style="margin-bottom:12px;">
         <label>Percepção de Esforço — Escala de Borg (CR-10)</label>
@@ -197,6 +195,7 @@ function execBindEvents(container) {
         reps: realReps,
         load: realCarga,
         unit: item.unit,
+        unitDetail: item.unitDetail,
         borg: realBorg,
         notes: realObs,
         planItemId: item.id,
@@ -213,6 +212,8 @@ function execBindEvents(container) {
     });
   });
 
+  bindUnitFieldEvents(container, 'mp-f');
+
   const form = container.querySelector('#mp-session-form');
   if (form) {
     const borgInput = container.querySelector('#mp-f-borg');
@@ -228,6 +229,7 @@ function execBindEvents(container) {
     if (sessionBtn) sessionBtn.addEventListener('click', async () => {
       const exerciseName = container.querySelector('#mp-f-exercicio').value.trim();
       if (!exerciseName) { Utils.toast('Preencha o nome do exercício.', 'error'); return; }
+      const { unit, unitDetail } = readUnitFieldValues(container, 'mp-f');
       const session = {
         id: dbUuid(),
         ts: Date.now(),
@@ -237,7 +239,8 @@ function execBindEvents(container) {
         series: parseInt(container.querySelector('#mp-f-series').value, 10) || 0,
         reps: parseInt(container.querySelector('#mp-f-reps').value, 10) || 0,
         load: parseFloat(container.querySelector('#mp-f-carga').value) || 0,
-        unit: container.querySelector('#mp-f-unidade').value,
+        unit,
+        unitDetail,
         borg: parseInt(container.querySelector('#mp-f-borg').value, 10) || 0,
         notes: container.querySelector('#mp-f-obs').value.trim(),
         planItemId: null,

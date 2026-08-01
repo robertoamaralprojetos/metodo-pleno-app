@@ -2,10 +2,12 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [] };
+
 const AppState = {
   students: [],
   currentId: null,
-  data: { sessions: [], plans: [], evaluations: [] },
+  data: { ...EMPTY_STUDENT_DATA },
   activeTab: 'plano',
   loading: true,
   planDate: null,
@@ -13,12 +15,15 @@ const AppState = {
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.payments, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.cancellations, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.physicalEvaluations, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations };
 }
 
 async function stateInit() {
@@ -35,7 +40,7 @@ async function switchStudent(id) {
   AppState.currentId = id;
   AppState.planDate = null;
   AppState.execDate = null;
-  AppState.data = id ? await loadStudentData(id) : { sessions: [], plans: [], evaluations: [] };
+  AppState.data = id ? await loadStudentData(id) : { ...EMPTY_STUDENT_DATA };
   render();
 }
 
@@ -82,6 +87,14 @@ function exerciseList() {
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+// Cores de elástico já usadas por este aluno (sessões + itens de plano), para autocomplete.
+function elasticColorList() {
+  const set = new Set();
+  AppState.data.sessions.forEach((s) => { if (s.unit === 'elastico' && s.unitDetail) set.add(s.unitDetail); });
+  AppState.data.plans.forEach((p) => p.items.forEach((it) => { if (it.unit === 'elastico' && it.unitDetail) set.add(it.unitDetail); }));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
 window.AppState = AppState;
 window.stateInit = stateInit;
 window.switchStudent = switchStudent;
@@ -92,3 +105,4 @@ window.getPlanByDate = getPlanByDate;
 window.ensurePlan = ensurePlan;
 window.persistPlan = persistPlan;
 window.exerciseList = exerciseList;
+window.elasticColorList = elasticColorList;

@@ -2,13 +2,16 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   students: 'students',
   lessonPlans: 'lessonPlans',
   sessions: 'sessions',
   functionalEvaluations: 'functionalEvaluations',
+  payments: 'payments',
+  cancellations: 'cancellations',
+  physicalEvaluations: 'physicalEvaluations',
 };
 
 let dbPromise = null;
@@ -43,6 +46,24 @@ function openDB() {
 
       if (!db.objectStoreNames.contains(STORES.functionalEvaluations)) {
         const s = db.createObjectStore(STORES.functionalEvaluations, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.payments)) {
+        const s = db.createObjectStore(STORES.payments, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.cancellations)) {
+        const s = db.createObjectStore(STORES.cancellations, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.physicalEvaluations)) {
+        const s = db.createObjectStore(STORES.physicalEvaluations, { keyPath: 'id' });
         s.createIndex('byStudent', 'studentId', { unique: false });
         s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
       }
