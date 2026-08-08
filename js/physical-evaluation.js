@@ -9,6 +9,17 @@ const BIOIMPEDANCE_FIELDS = [
   { key: 'visceralFat', label: 'Gordura visceral', unit: '' },
 ];
 
+// Uma entrada por métrica com gráfico de evolução individual (peso + bioimpedância + circunferências).
+const PE_METRICS = [
+  { key: 'weight', label: 'Peso (kg)', getValue: (r) => r.weight },
+  { key: 'bodyFatPercent', label: 'Gordura corporal (%)', getValue: (r) => r.bodyFatPercent },
+  { key: 'leanMassPercent', label: 'Massa magra (%)', getValue: (r) => r.leanMassPercent },
+  { key: 'basalMetabolism', label: 'Metabolismo basal (kcal)', getValue: (r) => r.basalMetabolism },
+  { key: 'bodyAge', label: 'Idade corporal (anos)', getValue: (r) => r.bodyAge },
+  { key: 'visceralFat', label: 'Gordura visceral', getValue: (r) => r.visceralFat },
+  ...CIRCUMFERENCE_FIELDS.map((f) => ({ key: 'circ_' + f.key, label: f.label + ' (cm)', getValue: (r) => r.circumferences?.[f.key] })),
+];
+
 function computeImcResult(weight, height, age) {
   if (!weight || !height) return null;
   const heightM = height / 100;
@@ -17,15 +28,22 @@ function computeImcResult(weight, height, age) {
   return { imc: Math.round(imc * 10) / 10, ...classification };
 }
 
+function metricPoints(list, metric) {
+  return list
+    .filter((r) => metric.getValue(r) != null)
+    .map((r) => ({ label: Utils.formatDateBR(r.date).slice(0, 5), value: metric.getValue(r) }));
+}
+
 function peRenderHtml() {
   const student = currentStudent();
   if (!student) return '<div class="mp-empty">Selecione ou cadastre um aluno.</div>';
 
   const today = Utils.todayISO();
   const age = student.birthDate ? Utils.calcAgeFromBirthDate(student.birthDate, today) : null;
-  const list = [...AppState.data.physicalEvaluations].sort((a, b) => b.date.localeCompare(a.date));
+  const list = [...AppState.data.physicalEvaluations].sort((a, b) => a.date.localeCompare(b.date));
+  const listDesc = [...list].sort((a, b) => b.date.localeCompare(a.date));
 
-  const rows = list.map((rec) => {
+  const rows = listDesc.map((rec) => {
     const imcResult = computeImcResult(rec.weight, rec.height, rec.age);
     return `
       <tr>
@@ -35,11 +53,13 @@ function peRenderHtml() {
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
         <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}</td>
         <td>
-          <button class="mp-btn mp-btn-ghost mp-btn-sm" data-print-eval="${rec.id}" type="button">🖨 Imprimir</button>
+          <button class="mp-btn mp-btn-ghost mp-btn-sm" data-print-eval="${rec.id}" type="button">🖨 Comparar c/ anterior</button>
           <button class="mp-btn-danger" data-del-eval="${rec.id}" type="button">Excluir</button>
         </td>
       </tr>`;
   }).join('');
+
+  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 2);
 
   return `
   <div class="mp-card">
@@ -79,20 +99,23 @@ function peRenderHtml() {
   </div>
 
   <div class="mp-card" style="margin-top:20px;">
-    <h3>Evolução</h3>
-    <div class="mp-grid2">
-      <div>
-        <div class="mp-sub" style="margin:0 0 8px;">Peso (kg)</div>
-        <div class="mp-chart-box" id="pe-chart-weight"></div>
-      </div>
-      <div>
-        <div class="mp-sub" style="margin:0 0 8px;">Gordura corporal (%)</div>
-        <div class="mp-chart-box" id="pe-chart-fat"></div>
-      </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin-bottom:0;">Evolução por métrica</h3>
+      <button type="button" id="pe-report-btn" class="mp-btn mp-btn-outline" style="color:var(--verde-principal);border-color:var(--verde-suave);">📄 Baixar relatório</button>
     </div>
+    <div class="mp-sub" style="margin-top:10px;">${availableMetrics.length ? 'Um gráfico por métrica, com pelo menos 2 avaliações registradas.' : 'Registre pelo menos 2 avaliações para ver os gráficos de evolução.'}</div>
+    ${availableMetrics.length ? `
+    <div class="mp-metric-grid">
+      ${availableMetrics.map((m) => `
+        <div>
+          <div class="mp-sub" style="margin:0 0 6px;font-weight:700;">${Utils.escapeHtml(m.label)}</div>
+          <div class="mp-chart-box" id="pe-chart-${m.key}"></div>
+        </div>
+      `).join('')}
+    </div>` : ''}
   </div>
 
-  ${list.length ? `
+  ${listDesc.length ? `
   <div class="mp-card" style="margin-top:20px;">
     <h3>Histórico de avaliações</h3>
     <div style="overflow-x:auto;">
@@ -137,6 +160,34 @@ function pePrintHtml(student, current, previous) {
       <tbody>${rowsHtml}</tbody>
     </table>
   `;
+}
+
+// Monta o relatório visual completo (todas as métricas com gráfico de evolução) dentro
+// de #mp-print-area e aciona a impressão/"Salvar como PDF" do navegador.
+function peBuildAndPrintReport(printArea, student, list) {
+  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 2);
+  if (!availableMetrics.length) {
+    Utils.toast('Registre pelo menos 2 avaliações para gerar o relatório.', 'error');
+    return;
+  }
+
+  printArea.innerHTML = '';
+  printArea.appendChild(Utils.el(`
+    <div class="mp-report-header">
+      <h2 style="font-family:Georgia,serif;margin-bottom:2px;">Método Pleno — Relatório de Evolução Física</h2>
+      <div style="color:#555;">Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)</div>
+    </div>
+  `));
+
+  availableMetrics.forEach((m) => {
+    const section = Utils.el(`<div class="mp-report-section"><h3 style="font-family:Georgia,serif;font-size:15px;margin-bottom:6px;">${Utils.escapeHtml(m.label)}</h3></div>`);
+    const points = metricPoints(list, m);
+    const chart = Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado, width: 680, height: 190 });
+    if (chart) section.appendChild(chart);
+    printArea.appendChild(section);
+  });
+
+  window.print();
 }
 
 function peBindEvents(container) {
@@ -217,27 +268,22 @@ function peBindEvents(container) {
       window.print();
     });
   });
+
+  container.querySelector('#pe-report-btn')?.addEventListener('click', () => {
+    const sorted = [...AppState.data.physicalEvaluations].sort((a, b) => a.date.localeCompare(b.date));
+    peBuildAndPrintReport(container.querySelector('#mp-print-area'), student, sorted);
+  });
 }
 
 function peAfterRender(container) {
   const list = [...AppState.data.physicalEvaluations].sort((a, b) => a.date.localeCompare(b.date));
-  const weightTarget = container.querySelector('#pe-chart-weight');
-  const fatTarget = container.querySelector('#pe-chart-fat');
-  if (!list.length) {
-    weightTarget.innerHTML = '<div class="mp-sub" style="margin:0;padding:20px 0;text-align:center;">Sem dados ainda.</div>';
-    fatTarget.innerHTML = '<div class="mp-sub" style="margin:0;padding:20px 0;text-align:center;">Sem dados ainda.</div>';
-    return;
-  }
-  const weightPoints = list.filter((r) => r.weight != null).map((r) => ({ label: Utils.formatDateBR(r.date).slice(0, 5), value: r.weight }));
-  const fatPoints = list.filter((r) => r.bodyFatPercent != null).map((r) => ({ label: Utils.formatDateBR(r.date).slice(0, 5), value: r.bodyFatPercent }));
-
-  weightTarget.innerHTML = '';
-  if (weightPoints.length >= 2) weightTarget.appendChild(Charts.lineChart(weightPoints, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado }));
-  else weightTarget.innerHTML = '<div class="mp-sub" style="margin:0;padding:20px 0;text-align:center;">Registre ao menos 2 avaliações com peso para ver o gráfico.</div>';
-
-  fatTarget.innerHTML = '';
-  if (fatPoints.length >= 2) fatTarget.appendChild(Charts.lineChart(fatPoints, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal }));
-  else fatTarget.innerHTML = '<div class="mp-sub" style="margin:0;padding:20px 0;text-align:center;">Registre ao menos 2 avaliações com % de gordura para ver o gráfico.</div>';
+  PE_METRICS.forEach((m) => {
+    const target = container.querySelector(`#pe-chart-${m.key}`);
+    if (!target) return; // métrica sem dados suficientes — nem renderizada no HTML
+    const points = metricPoints(list, m);
+    target.innerHTML = '';
+    target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado, height: 170 }));
+  });
 }
 
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };

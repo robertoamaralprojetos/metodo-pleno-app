@@ -1,5 +1,37 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
+const APP_VERSION = 'v1.4.0';
+
+const HELP_TOPICS = [
+  { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
+  { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
+  { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
+  { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não), atualizável a qualquer momento.' },
+  { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
+  { title: 'Registro de Treino', text: 'Execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos.' },
+  { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido, aulas dadas e consistência de treino.' },
+  { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
+  { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal (bioimpedância) e circunferências, com histórico e gráficos.' },
+];
+
+function openHelpModal() {
+  const overlay = Utils.el(`
+    <div class="modal-overlay">
+      <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto;">
+        <h3 style="font-family:'Fraunces',serif;margin-bottom:12px;">Como usar o Método Pleno</h3>
+        ${HELP_TOPICS.map((t) => `<p style="margin-bottom:10px;"><strong>${Utils.escapeHtml(t.title)}</strong><br><span style="font-size:13px;color:var(--texto-suave);">${Utils.escapeHtml(t.text)}</span></p>`).join('')}
+        <div class="modal__actions">
+          <button class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;" data-action="close" type="button">Entendi</button>
+        </div>
+      </div>
+    </div>
+  `);
+  overlay.addEventListener('click', (e) => {
+    if (e.target.dataset.action === 'close' || e.target === overlay) overlay.remove();
+  });
+  document.body.appendChild(overlay);
+}
+
 let storageWarning = null;
 let deferredInstallPrompt = null;
 
@@ -25,10 +57,13 @@ function render() {
     return;
   }
   try {
-    root.innerHTML = renderHeader() + '<div class="mp-wrap mp-content" id="mp-tabcontent">' + renderTabContent() + '</div>';
+    root.innerHTML = renderHeader() + '<div class="mp-wrap mp-content" id="mp-tabcontent">' + renderTabContent() + '</div>' + renderFooter();
     bindHeaderEvents();
+    const helpBtn = document.getElementById('mp-help-btn');
+    if (helpBtn) helpBtn.addEventListener('click', openHelpModal);
     const contentEl = document.getElementById('mp-tabcontent');
     if (AppState.currentId) {
+      if (AppState.activeTab === 'administrativo') { AdminView.bindEvents(contentEl); AdminView.afterRender(contentEl); }
       if (AppState.activeTab === 'cadastro') { RegistrationView.bindEvents(contentEl); }
       if (AppState.activeTab === 'pagamento') { PaymentsView.bindEvents(contentEl); }
       if (AppState.activeTab === 'anamnese') { AnamnesisView.bindEvents(contentEl); }
@@ -81,18 +116,38 @@ function renderHeader() {
         <span id="mp-conn-status" style="margin-left:auto;font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.12);color:var(--dourado-claro);"></span>
       </div>
       ${AppState.currentId ? `
-      <div class="mp-tabs">
-        <button class="mp-tab ${AppState.activeTab === 'cadastro' ? 'active' : ''}" data-tab="cadastro">Cadastro do Aluno</button>
-        <button class="mp-tab ${AppState.activeTab === 'pagamento' ? 'active' : ''}" data-tab="pagamento">Controle de Pagamento</button>
-        <button class="mp-tab ${AppState.activeTab === 'anamnese' ? 'active' : ''}" data-tab="anamnese">Anamnese</button>
-        <button class="mp-tab ${AppState.activeTab === 'plano' ? 'active' : ''}" data-tab="plano">Planejar Aula</button>
-        <button class="mp-tab ${AppState.activeTab === 'registro' ? 'active' : ''}" data-tab="registro">Registro de Treino <span class="mp-tab-count">${AppState.data.sessions.length}</span></button>
-        <button class="mp-tab ${AppState.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">Dashboard de Evolução</button>
-        <button class="mp-tab ${AppState.activeTab === 'avaliacao' ? 'active' : ''}" data-tab="avaliacao">Avaliação Funcional <span class="mp-tab-count">${AppState.data.evaluations.length}</span></button>
-        <button class="mp-tab ${AppState.activeTab === 'fisica' ? 'active' : ''}" data-tab="fisica">Avaliação Física <span class="mp-tab-count">${AppState.data.physicalEvaluations.length}</span></button>
+      <div style="margin-top:20px;position:relative;z-index:1;">
+        <select id="mp-tab-select" class="mp-tab-select">
+          <optgroup label="Visão geral (todos os alunos)">
+            <option value="administrativo" ${AppState.activeTab === 'administrativo' ? 'selected' : ''}>📊 Administrativo</option>
+          </optgroup>
+          <optgroup label="Aluno selecionado">
+            <option value="cadastro" ${AppState.activeTab === 'cadastro' ? 'selected' : ''}>Cadastro do Aluno</option>
+            <option value="pagamento" ${AppState.activeTab === 'pagamento' ? 'selected' : ''}>Controle de Pagamento</option>
+            <option value="anamnese" ${AppState.activeTab === 'anamnese' ? 'selected' : ''}>Anamnese</option>
+            <option value="plano" ${AppState.activeTab === 'plano' ? 'selected' : ''}>Planejar Aula</option>
+            <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${AppState.data.sessions.length})</option>
+            <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
+            <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
+            <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
+          </optgroup>
+        </select>
       </div>` : ''}
     </div>
   </div>`;
+}
+
+function renderFooter() {
+  return `
+  <footer class="mp-footer">
+    <div class="mp-wrap" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <span>🔒 Seus dados ficam salvos apenas neste aparelho — nunca são enviados a nenhum servidor.</span>
+      <span style="display:flex;align-items:center;gap:10px;">
+        <button type="button" id="mp-help-btn" class="mp-btn mp-btn-ghost mp-btn-sm">❓ Ajuda</button>
+        <span class="mp-footer-version">Método Pleno ${APP_VERSION}</span>
+      </span>
+    </div>
+  </footer>`;
 }
 
 function renderTabContent() {
@@ -102,6 +157,7 @@ function renderTabContent() {
       <p>Digite o nome do aluno acima e clique em "+ Adicionar aluno" para abrir a ficha individual de acompanhamento.</p>
     </div>`;
   }
+  if (AppState.activeTab === 'administrativo') return AdminView.renderHtml();
   if (AppState.activeTab === 'cadastro') return RegistrationView.renderHtml();
   if (AppState.activeTab === 'pagamento') return PaymentsView.renderHtml();
   if (AppState.activeTab === 'anamnese') return AnamnesisView.renderHtml();
@@ -154,9 +210,8 @@ function bindHeaderEvents() {
     if (file) BackupModule.importBackup(file);
   });
 
-  document.querySelectorAll('.mp-tab').forEach((btn) => {
-    btn.addEventListener('click', () => { AppState.activeTab = btn.dataset.tab; render(); });
-  });
+  const tabSelect = document.getElementById('mp-tab-select');
+  if (tabSelect) tabSelect.addEventListener('change', () => { AppState.activeTab = tabSelect.value; render(); });
 
   const installBtn = document.getElementById('mp-install-btn');
   if (installBtn) {

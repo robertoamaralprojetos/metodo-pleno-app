@@ -2,7 +2,7 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORES = {
   students: 'students',
@@ -12,6 +12,7 @@ const STORES = {
   payments: 'payments',
   cancellations: 'cancellations',
   physicalEvaluations: 'physicalEvaluations',
+  dailySessionMeta: 'dailySessionMeta',
 };
 
 let dbPromise = null;
@@ -66,6 +67,13 @@ function openDB() {
         const s = db.createObjectStore(STORES.physicalEvaluations, { keyPath: 'id' });
         s.createIndex('byStudent', 'studentId', { unique: false });
         s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      // Uma "ficha do dia" por aluno+data (id determinístico: studentId__data), guardando
+      // o modo de Borg escolhido naquele dia (por exercício ou treino geral) e a nota geral.
+      if (!db.objectStoreNames.contains(STORES.dailySessionMeta)) {
+        const s = db.createObjectStore(STORES.dailySessionMeta, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
       }
     };
 

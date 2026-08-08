@@ -26,7 +26,7 @@ function execRenderHtml() {
       <td>${Utils.escapeHtml(s.exerciseName)}</td>
       <td>${s.series}×${s.reps}</td>
       <td>${s.load} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}</td>
-      <td><span class="mp-pill ${borgPillClass(s.borg)}">${s.borg} · ${BORG_LABELS[s.borg]}</span></td>
+      <td>${s.borg != null ? `<span class="mp-pill ${borgPillClass(s.borg)}">${s.borg} · ${BORG_LABELS[s.borg]}</span>` : '<span style="color:var(--texto-suave);">— (treino geral)</span>'}</td>
       <td style="max-width:180px;color:var(--texto-suave);font-size:12.5px;">${Utils.escapeHtml(s.notes || '')}</td>
       <td><button class="mp-btn-danger" data-del-session="${s.id}" type="button">Excluir</button></td>
     </tr>`).join('');
@@ -36,6 +36,10 @@ function execRenderHtml() {
   const pendentes = planItens.filter((it) => !it.completed);
   const concluidos = planItens.filter((it) => it.completed);
 
+  const dailyMeta = getDailyMeta(execDate);
+  const borgMode = dailyMeta?.borgMode || 'perExercise';
+  const isOverallMode = borgMode === 'overall';
+
   const checklistCards = pendentes.map((it) => `
     <div class="mp-check-card" id="mp-check-${it.id}">
       <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}</span></div>
@@ -43,10 +47,11 @@ function execRenderHtml() {
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
         <div class="mp-field"><label>Carga</label><input type="number" min="0" step="0.5" id="mp-real-carga-${it.id}" value="${it.load}"></div>
+        ${isOverallMode ? '' : `
         <div class="mp-field">
           <label>Borg <span id="mp-real-borg-num-${it.id}">5</span></label>
           <input type="range" min="0" max="10" step="1" value="5" id="mp-real-borg-${it.id}" data-borg-live="${it.id}">
-        </div>
+        </div>`}
       </div>
       <div class="mp-field" style="margin-top:10px;">
         <label>Observações (opcional)</label>
@@ -80,10 +85,34 @@ function execRenderHtml() {
       <span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span>
       <span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span>
     </div>
+    <div class="mp-field" style="margin-top:14px;">
+      <label>Como classificar a Escala de Borg CR-10 hoje?</label>
+      <div class="mp-yesno">
+        <button type="button" class="mp-yesno-btn ${!isOverallMode ? 'mp-yesno-btn--active-yes' : ''}" data-borg-mode-btn="perExercise">Por exercício</button>
+        <button type="button" class="mp-yesno-btn ${isOverallMode ? 'mp-yesno-btn--active-yes' : ''}" data-borg-mode-btn="overall">Treino geral</button>
+      </div>
+    </div>
     <div class="mp-sub" style="margin-top:10px;">${planItens.length ? 'Marque cada exercício conforme for aplicando — os valores já vêm preenchidos com o alvo planejado, é só ajustar.' : 'Nenhum plano criado para esta data. Vá em "Planejar Aula" para montar a sequência com antecedência, ou registre um exercício avulso abaixo.'}</div>
     ${pendentes.length ? checklistCards : (planItens.length ? '<div class="mp-sub" style="margin:0;">Todos os exercícios planejados já foram concluídos hoje. 🎉</div>' : '')}
     ${concluidosList}
   </div>
+
+  ${isOverallMode ? `
+  <div class="mp-card" style="margin-top:20px;">
+    <h3>Borg do treino inteiro</h3>
+    <div class="mp-sub" style="margin-top:10px;">Uma única nota de esforço percebido para toda a aula de hoje (${Utils.formatDateBR(execDate)}).</div>
+    <div class="mp-borg-wrap">
+      <div class="mp-borg-top">
+        <span class="mp-borg-value" id="mp-overall-borg-num">${dailyMeta?.overallBorg ?? 5}</span>
+        <span class="mp-borg-label" id="mp-overall-borg-lbl">${Utils.escapeHtml(BORG_LABELS[dailyMeta?.overallBorg ?? 5])}</span>
+      </div>
+      <input type="range" id="mp-overall-borg-slider" min="0" max="10" step="1" value="${dailyMeta?.overallBorg ?? 5}">
+    </div>
+    <div class="mp-form-actions" style="margin-top:10px;">
+      <button type="button" id="mp-overall-borg-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar Borg do treino</button>
+    </div>
+    ${dailyMeta?.overallBorg != null ? `<div class="mp-sub" style="margin:8px 0 0;">Já registrado: <strong>${dailyMeta.overallBorg} · ${Utils.escapeHtml(BORG_LABELS[dailyMeta.overallBorg])}</strong></div>` : ''}
+  </div>` : ''}
 
   <div class="mp-card" style="margin-top:20px;">
     <h3>Registrar exercício avulso (fora do plano)</h3>
@@ -102,6 +131,7 @@ function execRenderHtml() {
       <div class="mp-form-row mp-row2">
         ${unitFieldHtml('mp-f', '', '', elasticColorList())}
       </div>
+      ${isOverallMode ? `<div class="mp-sub" style="margin-top:0;">Hoje está em modo "Treino geral" — a nota de Borg deste exercício vai ser representada pela nota única lá em cima.</div>` : `
       <div class="mp-field" style="margin-bottom:12px;">
         <label>Percepção de Esforço — Escala de Borg (CR-10)</label>
         <div class="mp-borg-wrap">
@@ -111,7 +141,7 @@ function execRenderHtml() {
           </div>
           <input type="range" id="mp-f-borg" min="0" max="10" step="1" value="5">
         </div>
-      </div>
+      </div>`}
       <div class="mp-field" style="margin-bottom:14px;">
         <label>Observações (opcional)</label>
         <textarea id="mp-f-obs" placeholder="Dor, adaptação, execução, etc."></textarea>
@@ -144,6 +174,34 @@ async function persistSession(session) {
 function execBindEvents(container) {
   const execDateInput = container.querySelector('#mp-exec-date');
   if (execDateInput) execDateInput.addEventListener('change', () => { AppState.execDate = execDateInput.value; render(); });
+
+  container.querySelectorAll('[data-borg-mode-btn]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const meta = ensureDailyMeta(AppState.execDate);
+      meta.borgMode = btn.dataset.borgModeBtn;
+      render();
+      await AppShell.guardedPut(DB.STORES.dailySessionMeta, meta);
+    });
+  });
+
+  const overallSlider = container.querySelector('#mp-overall-borg-slider');
+  if (overallSlider) {
+    overallSlider.addEventListener('input', () => {
+      const v = parseInt(overallSlider.value, 10);
+      container.querySelector('#mp-overall-borg-num').textContent = v;
+      container.querySelector('#mp-overall-borg-lbl').textContent = BORG_LABELS[v];
+    });
+  }
+  const overallSaveBtn = container.querySelector('#mp-overall-borg-save');
+  if (overallSaveBtn) {
+    overallSaveBtn.addEventListener('click', async () => {
+      const meta = ensureDailyMeta(AppState.execDate);
+      meta.overallBorg = parseInt(overallSlider.value, 10);
+      render();
+      Utils.toast('Borg do treino salvo ✓', 'success');
+      await AppShell.guardedPut(DB.STORES.dailySessionMeta, meta);
+    });
+  }
 
   container.querySelectorAll('[data-borg-live]').forEach((slider) => {
     slider.addEventListener('input', () => {
@@ -183,7 +241,8 @@ function execBindEvents(container) {
       const realSeries = parseInt(container.querySelector('#mp-real-series-' + itemId).value, 10) || 0;
       const realReps = parseInt(container.querySelector('#mp-real-reps-' + itemId).value, 10) || 0;
       const realCarga = parseFloat(container.querySelector('#mp-real-carga-' + itemId).value) || 0;
-      const realBorg = parseInt(container.querySelector('#mp-real-borg-' + itemId).value, 10) || 0;
+      const borgInputEl = container.querySelector('#mp-real-borg-' + itemId);
+      const realBorg = borgInputEl ? parseInt(borgInputEl.value, 10) : null;
       const realObs = container.querySelector('#mp-real-obs-' + itemId)?.value.trim() || '';
       const session = {
         id: dbUuid(),
@@ -219,11 +278,13 @@ function execBindEvents(container) {
     const borgInput = container.querySelector('#mp-f-borg');
     const borgNum = container.querySelector('#mp-borg-num');
     const borgLbl = container.querySelector('#mp-borg-lbl');
-    borgInput.addEventListener('input', () => {
-      const v = parseInt(borgInput.value, 10);
-      borgNum.textContent = v;
-      borgLbl.textContent = BORG_LABELS[v];
-    });
+    if (borgInput) {
+      borgInput.addEventListener('input', () => {
+        const v = parseInt(borgInput.value, 10);
+        borgNum.textContent = v;
+        borgLbl.textContent = BORG_LABELS[v];
+      });
+    }
     form.addEventListener('submit', (e) => e.preventDefault());
     const sessionBtn = container.querySelector('#mp-session-submit');
     if (sessionBtn) sessionBtn.addEventListener('click', async () => {
@@ -241,7 +302,7 @@ function execBindEvents(container) {
         load: parseFloat(container.querySelector('#mp-f-carga').value) || 0,
         unit,
         unitDetail,
-        borg: parseInt(container.querySelector('#mp-f-borg').value, 10) || 0,
+        borg: (() => { const el = container.querySelector('#mp-f-borg'); return el ? parseInt(el.value, 10) : null; })(),
         notes: container.querySelector('#mp-f-obs').value.trim(),
         planItemId: null,
       };

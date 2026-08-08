@@ -146,6 +146,7 @@ function payBindEvents(container) {
     if (!date || amount <= 0) { Utils.toast('Preencha data e valor do pagamento.', 'error'); return; }
     const payment = { id: dbUuid(), studentId: AppState.currentId, date, amount, createdAt: new Date().toISOString() };
     AppState.data.payments.push(payment);
+    invalidateAdminData();
     render();
     Utils.toast('Pagamento registrado ✓', 'success');
     const ok = await AppShell.guardedPut(DB.STORES.payments, payment);
@@ -157,6 +158,7 @@ function payBindEvents(container) {
       const ok = await Utils.confirmDialog('Excluir este pagamento? O ciclo será recalculado.');
       if (!ok) return;
       AppState.data.payments = AppState.data.payments.filter((p) => p.id !== btn.dataset.delPayment);
+      invalidateAdminData();
       render();
       await DB.delete(DB.STORES.payments, btn.dataset.delPayment);
     });

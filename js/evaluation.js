@@ -14,6 +14,14 @@ function classificacaoIndice(idx) {
   return SFT.INDEX_CLASSIFICATION.find((c) => idx <= c.max).label;
 }
 
+// Pontos (valor bruto, não pontuação) para o gráfico de evolução de um teste específico.
+function testPoints(list, testKey) {
+  return [...list]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((rec) => rec.results?.[testKey] != null)
+    .map((rec) => ({ label: Utils.formatDateBR(rec.date).slice(0, 5), value: rec.results[testKey] }));
+}
+
 function resultRowHtml(field, testResult) {
   if (!testResult) {
     return `<tr><td>${Utils.escapeHtml(field.label)}</td><td colspan="5" style="color:var(--texto-suave);">— preencha o valor —</td></tr>`;
@@ -47,6 +55,8 @@ function evalRenderHtml() {
         <td><button class="mp-btn-danger" data-del-assess="${rec.id}" type="button">Excluir</button></td>
       </tr>`;
   }).join('');
+
+  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 2);
 
   return `
   <div class="mp-card">
@@ -86,8 +96,25 @@ function evalRenderHtml() {
   </div>
 
   <div class="mp-card" style="margin-top:20px;">
-    <h3>Evolução do Índice de Aptidão Funcional</h3>
-    <div class="mp-chart-box" id="mp-chart-indice">${list.length < 2 ? '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre pelo menos 2 avaliações completas para ver a evolução do índice.</div>' : ''}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin-bottom:0;">Evolução do Índice de Aptidão Funcional</h3>
+      <button type="button" id="af-report-btn" class="mp-btn mp-btn-outline" style="color:var(--verde-principal);border-color:var(--verde-suave);">📄 Baixar relatório</button>
+    </div>
+    <div class="mp-chart-box" id="mp-chart-indice" style="margin-top:14px;">${list.length < 2 ? '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre pelo menos 2 avaliações completas para ver a evolução do índice.</div>' : ''}</div>
+  </div>
+
+  <div class="mp-card" style="margin-top:20px;">
+    <h3>Evolução por teste</h3>
+    <div class="mp-sub" style="margin-top:10px;">${availableTestCharts.length ? 'Valor bruto de cada teste (não a pontuação), com pelo menos 2 avaliações registradas.' : 'Registre pelo menos 2 avaliações completas para ver os gráficos por teste.'}</div>
+    ${availableTestCharts.length ? `
+    <div class="mp-metric-grid">
+      ${availableTestCharts.map((f) => `
+        <div>
+          <div class="mp-sub" style="margin:0 0 6px;font-weight:700;">${Utils.escapeHtml(f.label)} <span style="font-weight:400;">(${f.unit})</span></div>
+          <div class="mp-chart-box" id="mp-chart-test-${f.key}"></div>
+        </div>
+      `).join('')}
+    </div>` : ''}
   </div>
 
   ${list.length ? `
@@ -97,7 +124,9 @@ function evalRenderHtml() {
       <thead><tr><th>Data</th><th>Índice</th><th>Classificação</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-  </div>` : ''}`;
+  </div>` : ''}
+
+  <div id="mp-print-area" class="mp-print-only"></div>`;
 }
 
 function getFormResults(container) {
@@ -147,8 +176,60 @@ function drawIndiceChart(container) {
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 100 }));
 }
 
+function drawTestCharts(container) {
+  const list = AppState.data.evaluations;
+  TEST_FIELDS.forEach((f) => {
+    const target = container.querySelector(`#mp-chart-test-${f.key}`);
+    if (!target) return;
+    const points = testPoints(list, f.key);
+    target.innerHTML = '';
+    target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado, height: 170 }));
+  });
+}
+
+// Monta o relatório visual completo (Índice + os 5 testes com evolução) e aciona a impressão.
+function afBuildAndPrintReport(printArea, student, list) {
+  const indicePoints = [...list]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((rec) => {
+      const assessment = SFT.computeFunctionalAssessment(rec.results, rec.age, rec.sex);
+      return { label: Utils.formatDateBR(rec.date).slice(0, 5), value: assessment.complete ? assessment.index : null };
+    })
+    .filter((p) => p.value !== null);
+
+  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 2);
+
+  if (indicePoints.length < 2 && !availableTestCharts.length) {
+    Utils.toast('Registre pelo menos 2 avaliações completas para gerar o relatório.', 'error');
+    return;
+  }
+
+  printArea.innerHTML = '';
+  printArea.appendChild(Utils.el(`
+    <div class="mp-report-header">
+      <h2 style="font-family:Georgia,serif;margin-bottom:2px;">Método Pleno — Relatório de Avaliação Funcional</h2>
+      <div style="color:#555;">Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)</div>
+    </div>
+  `));
+
+  if (indicePoints.length >= 2) {
+    const section = Utils.el('<div class="mp-report-section"><h3 style="font-family:Georgia,serif;font-size:15px;margin-bottom:6px;">Índice de Aptidão Funcional (0–100)</h3></div>');
+    section.appendChild(Charts.lineChart(indicePoints, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 100, width: 680, height: 190 }));
+    printArea.appendChild(section);
+  }
+
+  availableTestCharts.forEach((f) => {
+    const section = Utils.el(`<div class="mp-report-section"><h3 style="font-family:Georgia,serif;font-size:15px;margin-bottom:6px;">${Utils.escapeHtml(f.label)} (${f.unit})</h3></div>`);
+    section.appendChild(Charts.lineChart(testPoints(list, f.key), { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado, width: 680, height: 190 }));
+    printArea.appendChild(section);
+  });
+
+  window.print();
+}
+
 function evalAfterRender(container) {
   drawIndiceChart(container);
+  drawTestCharts(container);
 }
 
 function evalBindEvents(container) {
@@ -193,6 +274,11 @@ function evalBindEvents(container) {
       render();
       await DB.delete(DB.STORES.functionalEvaluations, btn.dataset.delAssess);
     });
+  });
+
+  container.querySelector('#af-report-btn')?.addEventListener('click', () => {
+    const student = currentStudent();
+    afBuildAndPrintReport(container.querySelector('#mp-print-area'), student, AppState.data.evaluations);
   });
 }
 

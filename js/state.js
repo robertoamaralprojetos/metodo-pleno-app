@@ -2,7 +2,7 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
-const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [] };
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [] };
 
 const AppState = {
   students: [],
@@ -12,18 +12,20 @@ const AppState = {
   loading: true,
   planDate: null,
   execDate: null,
+  adminData: null,
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.payments, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.cancellations, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.physicalEvaluations, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.dailySessionMeta, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta };
 }
 
 async function stateInit() {
@@ -82,6 +84,40 @@ async function persistPlan(plan) {
   await DB.put(DB.STORES.lessonPlans, plan);
 }
 
+function dailyMetaId(studentId, date) { return `${studentId}__${date}`; }
+
+function getDailyMeta(date) {
+  return AppState.data.dailyMeta.find((m) => m.date === date) || null;
+}
+
+// Retorna (criando em memória se preciso) a "ficha do dia" do aluno atual. Não persiste
+// sozinha — quem chamar deve salvar via persistDailyMeta() após ajustar os campos.
+function ensureDailyMeta(date) {
+  let meta = getDailyMeta(date);
+  if (!meta) {
+    meta = { id: dailyMetaId(AppState.currentId, date), studentId: AppState.currentId, date, borgMode: 'perExercise', overallBorg: null, updatedAt: new Date().toISOString() };
+    AppState.data.dailyMeta.push(meta);
+  }
+  return meta;
+}
+
+async function persistDailyMeta(meta) {
+  meta.updatedAt = new Date().toISOString();
+  await DB.put(DB.STORES.dailySessionMeta, meta);
+}
+
+// Borg efetivo de um dia: nota única (modo "treino geral") ou média dos Borgs individuais
+// daquele dia (modo "por exercício" — inclui dias antigos, sem ficha registrada).
+function computeDailyBorg(sessions, dailyMeta, date) {
+  const meta = dailyMeta.find((m) => m.date === date);
+  if (meta && meta.borgMode === 'overall') {
+    return meta.overallBorg != null ? meta.overallBorg : null;
+  }
+  const values = sessions.filter((s) => s.date === date && s.borg != null).map((s) => s.borg);
+  if (!values.length) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 function exerciseList() {
   const set = new Set(AppState.data.sessions.map((s) => s.exerciseName));
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -106,3 +142,8 @@ window.ensurePlan = ensurePlan;
 window.persistPlan = persistPlan;
 window.exerciseList = exerciseList;
 window.elasticColorList = elasticColorList;
+window.dailyMetaId = dailyMetaId;
+window.getDailyMeta = getDailyMeta;
+window.ensureDailyMeta = ensureDailyMeta;
+window.persistDailyMeta = persistDailyMeta;
+window.computeDailyBorg = computeDailyBorg;

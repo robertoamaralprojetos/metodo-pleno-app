@@ -1,6 +1,16 @@
-// Aba: Dashboard de Evolução — KPIs, evolução de carga, Borg médio mensal e trilha de evolução.
+// Aba: Dashboard de Evolução — KPIs, evolução de carga, Borg (mensal e por treino),
+// aulas dadas e trilha de evolução.
 
 function monthKey(iso) { return iso.slice(0, 7); }
+
+// Uma entrada por dia distinto com sessão, usando o Borg efetivo do dia
+// (respeita o modo "por exercício"/"treino geral" — ver computeDailyBorg em state.js).
+function dailyBorgSeries() {
+  const dates = Array.from(new Set(AppState.data.sessions.map((s) => s.date))).sort();
+  return dates
+    .map((date) => ({ date, value: computeDailyBorg(AppState.data.sessions, AppState.data.dailyMeta, date) }))
+    .filter((d) => d.value != null);
+}
 
 function dashRenderHtml() {
   const sessions = AppState.data.sessions;
@@ -11,7 +21,8 @@ function dashRenderHtml() {
   const totalSessoes = sessions.length;
   const ultimaData = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0].date;
   const primeiraData = [...sessions].sort((a, b) => a.date.localeCompare(b.date))[0].date;
-  const mediaBorgGeral = (sessions.reduce((a, s) => a + s.borg, 0) / sessions.length).toFixed(1);
+  const dailyBorg = dailyBorgSeries();
+  const mediaBorgGeral = dailyBorg.length ? (dailyBorg.reduce((a, d) => a + d.value, 0) / dailyBorg.length).toFixed(1) : '—';
 
   const exOptions = ex.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
 
@@ -19,7 +30,7 @@ function dashRenderHtml() {
   <div class="mp-kpis">
     <div class="mp-kpi"><div class="mp-kpi-label">Sessões registradas</div><div class="mp-kpi-value">${totalSessoes}</div><div class="mp-kpi-note">desde ${Utils.formatDateBR(primeiraData)}</div></div>
     <div class="mp-kpi"><div class="mp-kpi-label">Última sessão</div><div class="mp-kpi-value" style="font-size:19px;">${Utils.formatDateBR(ultimaData)}</div></div>
-    <div class="mp-kpi"><div class="mp-kpi-label">Borg médio geral</div><div class="mp-kpi-value">${mediaBorgGeral}</div><div class="mp-kpi-note">escala CR-10</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-label">Borg médio geral</div><div class="mp-kpi-value">${mediaBorgGeral}</div><div class="mp-kpi-note">escala CR-10, por treino</div></div>
     <div class="mp-kpi"><div class="mp-kpi-label">Exercícios distintos</div><div class="mp-kpi-value">${ex.length}</div></div>
   </div>
 
@@ -30,9 +41,22 @@ function dashRenderHtml() {
       <div class="mp-chart-box" id="mp-chart-carga"></div>
     </div>
     <div class="mp-card">
+      <h3>Percepção de esforço por treino</h3>
+      <div class="mp-sub">Um valor de Borg por dia de treino (média, se registrado por exercício; nota única, se registrado por treino geral)</div>
+      <div class="mp-chart-box" id="mp-chart-borg-treino"></div>
+    </div>
+  </div>
+
+  <div class="mp-grid2">
+    <div class="mp-card">
       <h3>Borg médio por período</h3>
       <div class="mp-sub">Média mensal da percepção de esforço (CR-10)</div>
       <div class="mp-chart-box" id="mp-chart-borg"></div>
+    </div>
+    <div class="mp-card">
+      <h3>Aulas dadas</h3>
+      <div class="mp-sub">Mês atual comparado à soma de todos os meses anteriores</div>
+      <div class="mp-chart-box" id="mp-chart-aulas"></div>
     </div>
   </div>
 
@@ -62,15 +86,27 @@ function drawLoadChart(container, exerciseName) {
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado }));
 }
 
-function drawBorgChart(container) {
+function drawBorgPerTreinoChart(container, dailyBorg) {
+  const target = container.querySelector('#mp-chart-borg-treino');
+  if (!target) return;
+  target.innerHTML = '';
+  if (dailyBorg.length < 2) {
+    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre Borg em pelo menos 2 dias de treino para ver a evolução.</div>';
+    return;
+  }
+  const points = dailyBorg.map((d) => ({ label: Utils.formatDateBR(d.date).slice(0, 5), value: Math.round(d.value * 10) / 10 }));
+  target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 10 }));
+}
+
+function drawBorgChart(container, dailyBorg) {
   const target = container.querySelector('#mp-chart-borg');
   if (!target) return;
   target.innerHTML = '';
   const byMonth = {};
-  AppState.data.sessions.forEach((s) => {
-    const k = monthKey(s.date);
+  dailyBorg.forEach((d) => {
+    const k = monthKey(d.date);
     if (!byMonth[k]) byMonth[k] = [];
-    byMonth[k].push(s.borg);
+    byMonth[k].push(d.value);
   });
   const months = Object.keys(byMonth).sort();
   const bars = months.map((k) => {
@@ -82,16 +118,32 @@ function drawBorgChart(container) {
   return byMonth;
 }
 
-function drawTrilha(container, byMonth) {
+function drawAulasDadasChart(container) {
+  const target = container.querySelector('#mp-chart-aulas');
+  if (!target) return;
+  target.innerHTML = '';
+  const dates = Array.from(new Set(AppState.data.sessions.map((s) => s.date)));
+  const currentMonthKey = monthKey(Utils.todayISO());
+  const currentCount = dates.filter((d) => monthKey(d) === currentMonthKey).length;
+  const previousCount = dates.filter((d) => monthKey(d) !== currentMonthKey).length;
+  const bars = [
+    { label: 'Mês atual', value: currentCount, color: Charts.COLORS.dourado },
+    { label: 'Meses anteriores', value: previousCount, color: Charts.COLORS.verdeSuave },
+  ];
+  target.appendChild(Charts.barChart(bars, { formatY: (v) => Math.round(v) }));
+}
+
+function drawTrilha(container) {
   const target = container.querySelector('#mp-trilha-wrap');
   if (!target) return;
   target.innerHTML = '';
+  const monthsWithSessions = Array.from(new Set(AppState.data.sessions.map((s) => monthKey(s.date))));
   const assessByMonth = {};
   AppState.data.evaluations.forEach((rec) => {
     const assessment = SFT.computeFunctionalAssessment(rec.results, rec.age, rec.sex);
     if (assessment.complete) assessByMonth[monthKey(rec.date)] = assessment.index;
   });
-  target.appendChild(Charts.trilha(Object.keys(byMonth), assessByMonth));
+  target.appendChild(Charts.trilha(monthsWithSessions, assessByMonth));
 }
 
 function dashAfterRender(container) {
@@ -99,8 +151,11 @@ function dashAfterRender(container) {
   const exSelect = container.querySelector('#mp-ex-select');
   const exercicio = exSelect ? exSelect.value : exerciseList()[0];
   drawLoadChart(container, exercicio);
-  const byMonth = drawBorgChart(container);
-  drawTrilha(container, byMonth || {});
+  const dailyBorg = dailyBorgSeries();
+  drawBorgPerTreinoChart(container, dailyBorg);
+  drawBorgChart(container, dailyBorg);
+  drawAulasDadasChart(container);
+  drawTrilha(container);
 }
 
 function dashBindEvents(container) {
