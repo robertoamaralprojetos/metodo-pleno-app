@@ -101,25 +101,17 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-btn-sm{ padding:7px 12px; font-size:12.5px; }
 .mp-btn[hidden]{ display:none; }
 
-/* ---------- TABS ---------- */
-.mp-tabs{
-  display:flex; gap:4px; margin-top:26px; border-top:1px solid rgba(255,255,255,.14); padding-top:16px;
-  position:relative; z-index:1; overflow-x:auto;
+/* ---------- NAVEGAÇÃO (dropdown) ---------- */
+.mp-tab-select{
+  width:100%; max-width:440px;
+  font-family:'Manrope',sans-serif; font-weight:700; font-size:15px;
+  padding:13px 16px; border-radius:10px;
+  border:1px solid rgba(228,210,166,.5);
+  background:rgba(255,255,255,.08); color:#FBFAF6;
+  border-top:3px solid var(--dourado);
 }
-.mp-tab{
-  font-family:'Manrope',sans-serif; font-weight:700; font-size:13.5px;
-  background:transparent; border:none; color:rgba(251,250,246,.55);
-  padding:9px 6px; cursor:pointer; position:relative; white-space:nowrap;
-}
-.mp-tab.active{ color:#FBFAF6; }
-.mp-tab.active::after{
-  content:""; position:absolute; left:0; right:0; bottom:-17px; height:3px;
-  background:var(--dourado); border-radius:2px 2px 0 0;
-}
-.mp-tab-count{
-  display:inline-block; font-size:10.5px; background:rgba(228,210,166,.18); color:var(--dourado-claro);
-  padding:1px 7px; border-radius:20px; margin-left:6px;
-}
+.mp-tab-select:focus{ outline:2px solid var(--dourado); }
+.mp-tab-select option, .mp-tab-select optgroup{ color:var(--texto); background:#fff; font-weight:600; }
 
 /* ---------- CONTENT ---------- */
 .mp-content{ padding-top:28px; }
@@ -279,11 +271,11 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-anam-question{ padding:14px 0; border-bottom:1px solid #EEEDE4; }
 .mp-anam-question:last-of-type{ border-bottom:none; }
 .mp-anam-question__text{ font-size:14px; font-weight:600; color:var(--texto); margin-bottom:4px; }
-.mp-yesno{ display:flex; gap:8px; }
+.mp-yesno{ display:flex; gap:8px; flex-wrap:wrap; }
 .mp-yesno-btn{
-  flex:0 0 auto; padding:7px 20px; border-radius:8px; border:1px solid var(--borda);
+  flex:1 1 auto; min-width:110px; padding:7px 16px; border-radius:8px; border:1px solid var(--borda);
   background:#fff; font-weight:700; font-size:13px; cursor:pointer; color:var(--texto-suave);
-  font-family:'Manrope',sans-serif;
+  font-family:'Manrope',sans-serif; white-space:nowrap;
 }
 .mp-yesno-btn--active-yes{ background:var(--verde-principal); border-color:var(--verde-principal); color:#fff; }
 .mp-yesno-btn--active-no{ background:var(--alerta); border-color:var(--alerta); color:#fff; }
@@ -296,6 +288,15 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   .mp-print-table{ width:100%; border-collapse:collapse; margin-top:14px; }
   .mp-print-table th, .mp-print-table td{ border:1px solid #999; padding:8px; font-size:12px; text-align:left; }
   .mp-print-blank{ min-width:60px; height:22px; }
+  .mp-report-header{ margin-bottom:18px; padding-bottom:12px; border-bottom:2px solid #1F3D30; }
+  .mp-report-section{ break-inside:avoid; page-break-inside:avoid; margin-bottom:22px; }
+  .mp-report-section svg{ max-width:100%; }
+}
+
+/* ---------- Grade de mini-gráficos por métrica (Avaliação Física/Funcional) ---------- */
+.mp-metric-grid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;
+  margin-top:14px;
 }
 
 /* ---------- Modal genérico (confirmações) ---------- */
@@ -315,6 +316,13 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 }
 .modal__message{ font-size: 14px; line-height:1.5; }
 .modal__actions{ display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ---------- Rodapé ---------- */
+.mp-footer{
+  margin-top:36px; padding:16px 0 28px; border-top:1px solid var(--borda);
+  font-size:11.5px; color:var(--texto-suave);
+}
+.mp-footer-version{ font-weight:700; color:var(--verde-suave); }
 
 @media (max-width:520px){
   .mp-title{ font-size:24px; }
