@@ -21,6 +21,9 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;}
+/* Rede de segurança: a página nunca deve rolar na horizontal — qualquer conteúdo largo
+   (tabela, gráfico) deve rolar dentro do próprio contêiner (ver .mp-table-scroll abaixo). */
+html,body{ overflow-x:hidden; max-width:100%; }
 body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 
 #mp-root{
@@ -133,7 +136,29 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 /* form */
 .mp-form-row{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:12px; margin-bottom:12px;}
 .mp-form-row.mp-row2{ grid-template-columns:1fr 1fr; }
-@media (max-width:700px){ .mp-form-row{ grid-template-columns:1fr 1fr; } }
+.mp-form-row.mp-row3{ grid-template-columns:1fr 1fr 1fr; }
+.mp-form-row.mp-row4{ grid-template-columns:repeat(4,1fr); }
+.mp-form-row.mp-row5{ grid-template-columns:repeat(5,1fr); }
+.mp-form-row.mp-row-pe-header{ grid-template-columns:1fr 1.4fr 1fr 1fr; }
+/* Todo item de linha de formulário pode encolher abaixo do seu conteúdo mínimo — sem isso,
+   grid tracks com inputs de largura fixa (ex: campos de minutos/segundos) forçam a linha
+   a ficar mais larga que a tela e vazar para fora do card em telas estreitas. */
+.mp-form-row > *{ min-width:0; }
+@media (max-width:700px){
+  .mp-form-row,
+  .mp-form-row.mp-row3,
+  .mp-form-row.mp-row4,
+  .mp-form-row.mp-row5,
+  .mp-form-row.mp-row-pe-header{ grid-template-columns:1fr 1fr; }
+}
+@media (max-width:480px){
+  .mp-form-row,
+  .mp-form-row.mp-row2,
+  .mp-form-row.mp-row3,
+  .mp-form-row.mp-row4,
+  .mp-form-row.mp-row5,
+  .mp-form-row.mp-row-pe-header{ grid-template-columns:1fr; }
+}
 .mp-field label{
   display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
   color:var(--verde-suave); margin-bottom:5px;
@@ -156,6 +181,16 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-form-actions{ display:flex; justify-content:flex-end; margin-top:6px; }
 
 /* table */
+/* Contêiner de rolagem horizontal para tabelas largas em telas estreitas — a tabela nunca
+   vaza para fora do card, e o scrollbar fica sempre visível (não só ao arrastar) como pista
+   de que há mais colunas para o lado. */
+.mp-table-scroll{
+  overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+  scrollbar-color:var(--verde-suave) var(--borda);
+}
+.mp-table-scroll::-webkit-scrollbar{ height:7px; }
+.mp-table-scroll::-webkit-scrollbar-track{ background:var(--borda); border-radius:4px; }
+.mp-table-scroll::-webkit-scrollbar-thumb{ background:var(--verde-suave); border-radius:4px; }
 .mp-table{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
 .mp-table th{
   text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
@@ -328,4 +363,12 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   .mp-title{ font-size:24px; }
   .mp-kpis{ grid-template-columns:1fr 1fr; }
   .mp-logo{ height:40px; }
+}
+
+@media (max-width:480px){
+  /* Checklist de execução (Registro de Treino): Séries/Reps/Carga/Borg em 1 coluna. */
+  .mp-check-row{ grid-template-columns:1fr; }
+  /* Dias/horários (Cadastro do Aluno): deixa quebrar linha em vez de espremer o horário. */
+  .mp-schedule-row{ flex-wrap:wrap; row-gap:6px; }
+  .mp-schedule-check{ min-width:0; flex:1 1 140px; }
 }
