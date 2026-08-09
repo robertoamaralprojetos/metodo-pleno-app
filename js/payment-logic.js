@@ -2,17 +2,57 @@
 // Funções puras (sem acesso a DOM/IndexedDB), para serem testáveis e reaproveitadas
 // pela aba "Controle de Pagamento".
 
+const DOW_KEYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+
+// Retorna a data ISO da n-ésima ocorrência (1-indexada) de qualquer um dos dias da semana
+// em `weekDays` (chaves de DOW_KEYS), contando a partir de `startISO` (inclusive).
+function nthWeekdayOccurrence(startISO, weekDays, n) {
+  const set = new Set(weekDays);
+  let date = startISO;
+  let count = 0;
+  let guard = 0;
+  while (guard < 3660) { // ~10 anos de proteção contra loop infinito
+    const dow = DOW_KEYS[new Date(date + 'T00:00:00').getDay()];
+    if (set.has(dow)) {
+      count += 1;
+      if (count === n) return date;
+    }
+    date = Utils.addDaysISO(date, 1);
+    guard += 1;
+  }
+  return null; // não deveria acontecer com weekDays válido
+}
+
+// Fim previsto de um ciclo a partir da data de início: em vez de "+1 mês corrido" (que quase
+// nunca bate com a cadência real das aulas — ex: seg/qua/sex raramente fecha em 30 dias
+// exatos), conta as ocorrências dos dias de aula cadastrados até completar as aulas
+// contratadas por mês, e usa a véspera da aula seguinte (a 1ª do próximo ciclo) como fim.
+// Sem dias da semana cadastrados (dado legado) ou sem aulas contratadas, mantém o
+// comportamento antigo (+1 mês) para não quebrar cadastros já existentes.
+function projectedCycleEnd(startISO, weekDays, contractedCount) {
+  if (!weekDays || !weekDays.length || !contractedCount) {
+    return Utils.addDaysISO(Utils.addMonthsISO(startISO, 1), -1);
+  }
+  const nextCycleStart = nthWeekdayOccurrence(startISO, weekDays, contractedCount + 1);
+  if (!nextCycleStart) return Utils.addDaysISO(Utils.addMonthsISO(startISO, 1), -1);
+  return Utils.addDaysISO(nextCycleStart, -1);
+}
+
 // Reconstrói o histórico de ciclos do aluno a partir dos pagamentos registrados.
-// Ciclo = [data do pagamento, dia anterior ao mesmo dia do mês seguinte] (ou até o
-// próximo pagamento, se já existir um posterior). Antes do 1º pagamento, usa a
-// Data de Preenchimento do Cadastro como início do primeiro ciclo (provisório).
+// Ciclo = [data do pagamento, véspera da aula seguinte à última aula contratada do ciclo,
+// contando pelos dias da semana cadastrados] (ou até o próximo pagamento, se já existir um
+// posterior — nesse caso o fim real do ciclo já é conhecido e não precisa ser projetado).
+// Antes do 1º pagamento, usa a Data de Preenchimento do Cadastro como início do primeiro
+// ciclo (provisório).
 function buildCycles(student, payments) {
   const sorted = [...payments].sort((a, b) => a.date.localeCompare(b.date));
   const cycles = [];
+  const weekDays = student?.weekDays || [];
+  const contractedCount = Number(student?.monthlySessionsCount) || 0;
 
   if (!sorted.length) {
     if (!student?.fillDate) return [];
-    cycles.push({ start: student.fillDate, end: Utils.addDaysISO(Utils.addMonthsISO(student.fillDate, 1), -1), provisional: true });
+    cycles.push({ start: student.fillDate, end: projectedCycleEnd(student.fillDate, weekDays, contractedCount), provisional: true });
     return cycles;
   }
 
@@ -23,7 +63,7 @@ function buildCycles(student, payments) {
   sorted.forEach((p, i) => {
     const end = i + 1 < sorted.length
       ? Utils.addDaysISO(sorted[i + 1].date, -1)
-      : Utils.addDaysISO(Utils.addMonthsISO(p.date, 1), -1);
+      : projectedCycleEnd(p.date, weekDays, contractedCount);
     cycles.push({ start: p.date, end, paymentId: p.id });
   });
 
@@ -120,13 +160,12 @@ function makeupDisplayStatus(cancellation, rights) {
 function vacationCharge(student, startISO, endISO, settings) {
   const s = settings || window.DEFAULT_SETTINGS;
   const weekDays = student?.weekDays || [];
-  const dowKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
   let classesCount = 0;
   if (weekDays.length && startISO && endISO) {
     let d = new Date(startISO + 'T00:00:00');
     const end = new Date(endISO + 'T00:00:00');
     while (d <= end) {
-      if (weekDays.includes(dowKeys[d.getDay()])) classesCount += 1;
+      if (weekDays.includes(DOW_KEYS[d.getDay()])) classesCount += 1;
       d.setDate(d.getDate() + 1);
     }
   }
