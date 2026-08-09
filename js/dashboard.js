@@ -79,8 +79,8 @@ function drawLoadChart(container, exerciseName) {
     .filter((s) => s.exerciseName === exerciseName)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0))
     .map((s) => ({ label: Utils.formatDateBR(s.date).slice(0, 5), value: s.load }));
-  if (points.length < 2) {
-    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre este exercício em pelo menos 2 sessões para ver a evolução.</div>';
+  if (!points.length) {
+    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre este exercício em ao menos 1 sessão para ver a evolução.</div>';
     return;
   }
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado }));
@@ -90,8 +90,8 @@ function drawBorgPerTreinoChart(container, dailyBorg) {
   const target = container.querySelector('#mp-chart-borg-treino');
   if (!target) return;
   target.innerHTML = '';
-  if (dailyBorg.length < 2) {
-    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre Borg em pelo menos 2 dias de treino para ver a evolução.</div>';
+  if (!dailyBorg.length) {
+    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre Borg em ao menos 1 dia de treino para ver a evolução.</div>';
     return;
   }
   const points = dailyBorg.map((d) => ({ label: Utils.formatDateBR(d.date).slice(0, 5), value: Math.round(d.value * 10) / 10 }));

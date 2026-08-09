@@ -2,7 +2,7 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const STORES = {
   students: 'students',
@@ -13,6 +13,7 @@ const STORES = {
   cancellations: 'cancellations',
   physicalEvaluations: 'physicalEvaluations',
   dailySessionMeta: 'dailySessionMeta',
+  appSettings: 'appSettings',
 };
 
 let dbPromise = null;
@@ -74,6 +75,12 @@ function openDB() {
       if (!db.objectStoreNames.contains(STORES.dailySessionMeta)) {
         const s = db.createObjectStore(STORES.dailySessionMeta, { keyPath: 'id' });
         s.createIndex('byStudent', 'studentId', { unique: false });
+      }
+
+      // Configurações globais do app (não por aluno) — regras de desmarcação, nome do
+      // profissional no cabeçalho, etc. Registro único, id fixo 'global'.
+      if (!db.objectStoreNames.contains(STORES.appSettings)) {
+        db.createObjectStore(STORES.appSettings, { keyPath: 'id' });
       }
     };
 

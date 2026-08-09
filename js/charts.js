@@ -21,9 +21,11 @@ function svgEl(tag, attrs) {
   return node;
 }
 
-// points: [{label, value}]
+// points: [{label, value}]. Funciona com 1 único ponto (desenha o ponto centralizado,
+// sem linha) ou com vários (linha + área). Os valores ficam sempre visíveis como rótulo
+// acima de cada ponto — não só ao passar o mouse.
 function lineChart(points, { width = 640, height = 230, color = CHART_COLORS.verdePrincipal, pointColor = CHART_COLORS.dourado, fillOpacity = 0.12, formatY = (v) => v, yMin, yMax } = {}) {
-  const padding = { top: 16, right: 16, bottom: 34, left: 42 };
+  const padding = { top: 26, right: 16, bottom: 34, left: 42 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
 
@@ -39,7 +41,7 @@ function lineChart(points, { width = 640, height = 230, color = CHART_COLORS.ver
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, width: '100%', height, role: 'img' });
 
   const stepX = points.length > 1 ? innerW / (points.length - 1) : 0;
-  const xFor = (i) => padding.left + stepX * i;
+  const xFor = (i) => points.length === 1 ? padding.left + innerW / 2 : padding.left + stepX * i;
   const yFor = (v) => padding.top + innerH - ((v - min) / (max - min)) * innerH;
 
   const gridSteps = 4;
@@ -77,19 +79,26 @@ function lineChart(points, { width = 640, height = 230, color = CHART_COLORS.ver
 
   points.forEach((p, i) => {
     if (p.value === null || p.value === undefined) return;
-    const circle = svgEl('circle', { cx: xFor(i), cy: yFor(p.value), r: 4.5, fill: pointColor, stroke: '#fff', 'stroke-width': 1.5 });
+    const cx = xFor(i);
+    const cy = yFor(p.value);
+    const circle = svgEl('circle', { cx, cy, r: 4.5, fill: pointColor, stroke: '#fff', 'stroke-width': 1.5 });
     const title = svgEl('title', {});
     title.textContent = `${p.label}: ${formatY(p.value)}`;
     circle.appendChild(title);
     svg.appendChild(circle);
+
+    const valueLabel = svgEl('text', { x: cx, y: Math.max(cy - 10, 11), 'font-size': 10.5, fill: CHART_COLORS.verdeProfundo, 'text-anchor': 'middle', 'font-family': 'Manrope, sans-serif', 'font-weight': '700' });
+    valueLabel.textContent = formatY(p.value);
+    svg.appendChild(valueLabel);
   });
 
   return svg;
 }
 
-// bars: [{label, value, color}]
+// bars: [{label, value, color}]. Os valores ficam sempre visíveis como rótulo acima de
+// cada barra — não só ao passar o mouse. Funciona normalmente com 1 única barra.
 function barChart(bars, { width = 640, height = 220, formatY = (v) => v, maxValueOverride } = {}) {
-  const padding = { top: 16, right: 10, bottom: 34, left: 36 };
+  const padding = { top: 26, right: 10, bottom: 34, left: 36 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
   const maxValue = maxValueOverride ?? Math.max(1, ...bars.map((b) => b.value || 0));
@@ -117,6 +126,10 @@ function barChart(bars, { width = 640, height = 220, formatY = (v) => v, maxValu
     title.textContent = `${b.label}: ${formatY(b.value)}`;
     rect.appendChild(title);
     svg.appendChild(rect);
+
+    const valueLabel = svgEl('text', { x: x + barW / 2, y: Math.max(y - 8, 11), 'font-size': 10.5, fill: CHART_COLORS.verdeProfundo, 'text-anchor': 'middle', 'font-family': 'Manrope, sans-serif', 'font-weight': '700' });
+    valueLabel.textContent = formatY(b.value);
+    svg.appendChild(valueLabel);
 
     const label = svgEl('text', { x: x + barW / 2, y: height - padding.bottom + 16, 'font-size': 10, fill: CHART_COLORS.text, 'text-anchor': 'middle', 'font-family': 'Manrope, sans-serif' });
     label.textContent = b.label;

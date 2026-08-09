@@ -13,6 +13,7 @@ const AppState = {
   planDate: null,
   execDate: null,
   adminData: null,
+  settings: null,
 };
 
 async function loadStudentData(id) {
@@ -29,6 +30,7 @@ async function loadStudentData(id) {
 }
 
 async function stateInit() {
+  AppState.settings = await loadSettings();
   AppState.students = await StudentsData.listStudents();
   if (AppState.students.length) {
     AppState.currentId = AppState.students[0].id;

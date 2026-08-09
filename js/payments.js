@@ -4,6 +4,7 @@ function payRenderHtml() {
   const student = currentStudent();
   if (!student) return '<div class="mp-empty">Selecione ou cadastre um aluno.</div>';
 
+  const settings = AppState.settings || window.DEFAULT_SETTINGS;
   const payments = [...AppState.data.payments].sort((a, b) => b.date.localeCompare(a.date));
   const cycles = PaymentLogic.buildCycles(student, payments);
   const cycle = cycles.length ? cycles[cycles.length - 1] : null;
@@ -20,33 +21,35 @@ function payRenderHtml() {
     </tr>`).join('');
 
   const cancellations = [...AppState.data.cancellations].sort((a, b) => (b.classDate || b.vacationStart || '').localeCompare(a.classDate || a.vacationStart || ''));
-  const rights = PaymentLogic.computeCancellationRights(cancellations, cycles);
+  const rights = PaymentLogic.computeCancellationRights(cancellations, cycles, settings);
 
   const cancelRows = cancellations.map((c) => {
     if (c.isVacation) {
-      const v = PaymentLogic.vacationCharge(student, c.vacationStart, c.vacationEnd);
+      const v = PaymentLogic.vacationCharge(student, c.vacationStart, c.vacationEnd, settings);
       return `
         <tr>
           <td><span class="mp-pill mp-pill-moderado">Férias</span></td>
           <td>${Utils.formatDateBR(c.vacationStart)} – ${Utils.formatDateBR(c.vacationEnd)}</td>
           <td>—</td>
-          <td>${c.keepSlot ? `Reservado — ${v.classesCount} aula(s) · cobrança 60%: <strong>${Utils.formatBRL(v.charge)}</strong>` : 'Não reservado — sujeito à disponibilidade no retorno'}</td>
+          <td>${c.keepSlot ? `Reservado — ${v.classesCount} aula(s) · cobrança ${settings.vacationChargePercent}%: <strong>${Utils.formatBRL(v.charge)}</strong>` : 'Não reservado — sujeito à disponibilidade no retorno'}</td>
           <td><button class="mp-btn-danger" data-del-cancel="${c.id}" type="button">Excluir</button></td>
         </tr>`;
     }
     const r = rights[c.id];
     const status = PaymentLogic.makeupDisplayStatus(c, r);
     const canAct = r?.hasRight && c.makeupStatus !== 'reposta';
+    const transferCount = c.transferCount || 0;
+    const canTransfer = settings.allowTransfer && transferCount < settings.maxTransfers;
     return `
       <tr>
         <td><span class="mp-pill ${c.cancelledBy === 'professor' ? 'mp-pill-moderado' : 'mp-pill-leve'}">${c.cancelledBy === 'professor' ? 'Professor' : 'Aluno'}</span></td>
         <td>${Utils.formatDateBR(c.classDate)}</td>
-        <td>${c.cancelledBy === 'aluno' ? (c.noticeGiven ? 'Com antecedência' : 'Sem aviso / <1h') : '—'}</td>
+        <td>${c.cancelledBy === 'aluno' ? (c.noticeGiven ? 'Com antecedência' : `Sem aviso / <${settings.noticeHours}h`) : '—'}</td>
         <td><span class="mp-pill mp-pill-${status.level}">${Utils.escapeHtml(status.label)}</span></td>
         <td>
           ${canAct ? `
             <button class="mp-btn mp-btn-ghost mp-btn-sm" data-makeup-status="reposta" data-cancel-id="${c.id}" type="button">Marcar reposta</button>
-            ${c.cancelledBy === 'aluno' && c.makeupStatus !== 'transferida' ? `<button class="mp-btn mp-btn-ghost mp-btn-sm" data-makeup-status="transferida" data-cancel-id="${c.id}" type="button">Transferir p/ próx. ciclo</button>` : ''}
+            ${c.cancelledBy === 'aluno' && canTransfer ? `<button class="mp-btn mp-btn-ghost mp-btn-sm" data-transfer="1" data-cancel-id="${c.id}" type="button">Transferir p/ próx. ciclo</button>` : ''}
           ` : ''}
           <button class="mp-btn-danger" data-del-cancel="${c.id}" type="button">Excluir</button>
         </td>
@@ -88,6 +91,10 @@ function payRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Desmarcações, reposições e férias</h3>
     <div class="mp-sub" style="margin-top:10px;">Registre cada desmarcação — o app calcula automaticamente o direito a reposição, o prazo, e a cobrança de férias.</div>
+    <div class="mp-sub" style="background:var(--fundo);padding:12px 14px;border-radius:10px;margin:10px 0 16px;">
+      ${generatePolicyParagraphs(settings).map((p) => `<p style="margin-bottom:6px;">${p}</p>`).join('')}
+      <p style="margin:6px 0 0;font-size:12px;">Para ajustar essas regras, acesse <strong>⚙️ Configurações</strong>.</p>
+    </div>
     <form id="mp-cancel-form">
       <div class="mp-field" style="margin-bottom:12px;">
         <label class="mp-schedule-check" style="display:inline-flex;">
@@ -107,7 +114,7 @@ function payRenderHtml() {
         </div>
         <div class="mp-field" id="mp-c-notice-wrap">
           <label class="mp-schedule-check" style="display:inline-flex;">
-            <input type="checkbox" id="mp-c-notice" checked> Avisou com pelo menos 1h de antecedência?
+            <input type="checkbox" id="mp-c-notice" checked> Avisou com pelo menos ${settings.noticeHours}h de antecedência?
           </label>
         </div>
       </div>
@@ -201,6 +208,7 @@ function payBindEvents(container) {
         cancelledBy: who,
         noticeGiven: who === 'aluno' ? container.querySelector('#mp-c-notice').checked : null,
         makeupStatus: 'pendente',
+        transferCount: 0,
         createdAt: new Date().toISOString(),
       };
     }
@@ -216,6 +224,17 @@ function payBindEvents(container) {
       const record = AppState.data.cancellations.find((c) => c.id === btn.dataset.cancelId);
       if (!record) return;
       record.makeupStatus = btn.dataset.makeupStatus;
+      render();
+      const ok = await AppShell.guardedPut(DB.STORES.cancellations, record);
+      if (!ok) render();
+    });
+  });
+
+  container.querySelectorAll('[data-transfer]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const record = AppState.data.cancellations.find((c) => c.id === btn.dataset.cancelId);
+      if (!record) return;
+      record.transferCount = (record.transferCount || 0) + 1;
       render();
       const ok = await AppShell.guardedPut(DB.STORES.cancellations, record);
       if (!ok) render();

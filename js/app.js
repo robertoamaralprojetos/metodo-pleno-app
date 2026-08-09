@@ -1,9 +1,10 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.4.0';
+const APP_VERSION = 'v1.5.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
+  { title: '⚙️ Configurações', text: 'Personalize o nome do profissional exibido no cabeçalho e as regras de desmarcação/reposição/férias — o texto explicativo é gerado automaticamente a partir desses valores.' },
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não), atualizável a qualquer momento.' },
@@ -64,6 +65,7 @@ function render() {
     const contentEl = document.getElementById('mp-tabcontent');
     if (AppState.currentId) {
       if (AppState.activeTab === 'administrativo') { AdminView.bindEvents(contentEl); AdminView.afterRender(contentEl); }
+      if (AppState.activeTab === 'configuracoes') { SettingsView.bindEvents(contentEl); }
       if (AppState.activeTab === 'cadastro') { RegistrationView.bindEvents(contentEl); }
       if (AppState.activeTab === 'pagamento') { PaymentsView.bindEvents(contentEl); }
       if (AppState.activeTab === 'anamnese') { AnamnesisView.bindEvents(contentEl); }
@@ -100,7 +102,7 @@ function renderHeader() {
         <div>
           <div class="mp-eyebrow">Método Pleno · Movimento e Longevidade</div>
           <h1 class="mp-title">Acompanhamento Individualizado</h1>
-          <div class="mp-tagline">Movimento e Longevidade</div>
+          <div class="mp-tagline">${Utils.escapeHtml((AppState.settings && AppState.settings.headerProfessionalName) || 'Movimento e Longevidade')}</div>
         </div>
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
@@ -120,6 +122,7 @@ function renderHeader() {
         <select id="mp-tab-select" class="mp-tab-select">
           <optgroup label="Visão geral (todos os alunos)">
             <option value="administrativo" ${AppState.activeTab === 'administrativo' ? 'selected' : ''}>📊 Administrativo</option>
+            <option value="configuracoes" ${AppState.activeTab === 'configuracoes' ? 'selected' : ''}>⚙️ Configurações</option>
           </optgroup>
           <optgroup label="Aluno selecionado">
             <option value="cadastro" ${AppState.activeTab === 'cadastro' ? 'selected' : ''}>Cadastro do Aluno</option>
@@ -158,6 +161,7 @@ function renderTabContent() {
     </div>`;
   }
   if (AppState.activeTab === 'administrativo') return AdminView.renderHtml();
+  if (AppState.activeTab === 'configuracoes') return SettingsView.renderHtml();
   if (AppState.activeTab === 'cadastro') return RegistrationView.renderHtml();
   if (AppState.activeTab === 'pagamento') return PaymentsView.renderHtml();
   if (AppState.activeTab === 'anamnese') return AnamnesisView.renderHtml();

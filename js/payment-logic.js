@@ -47,10 +47,14 @@ function countClassDaysInRange(sessions, startISO, endISO) {
 }
 
 // Calcula, para cada desmarcação não-férias do aluno, se há direito a reposição e o prazo,
-// aplicando: limite de 2 desmarcações-com-direito por ciclo (a 3ª+ no mesmo ciclo perde o
-// direito mesmo com aviso prévio), prazo = fim do ciclo (ou do ciclo seguinte, se transferida)
-// para desmarcação pelo aluno, e classDate+2 meses para desmarcação pelo professor.
-function computeCancellationRights(cancellations, cycles) {
+// aplicando as regras configuráveis em Configurações (settings): limite de
+// settings.maxMakeupsPerMonth desmarcações-com-direito por ciclo (a partir da próxima no
+// mesmo ciclo perde o direito mesmo com aviso prévio), prazo = fim do ciclo (ou do ciclo
+// N ciclos à frente, se transferida settings.maxTransfers vezes) para desmarcação pelo
+// aluno, e classDate + settings.professorMonths meses para desmarcação pelo professor.
+// `settings` é opcional — cai em DEFAULT_SETTINGS (valores atuais/originais) se omitido.
+function computeCancellationRights(cancellations, cycles, settings) {
+  const s = settings || window.DEFAULT_SETTINGS;
   const results = {};
 
   const alunoComAviso = cancellations
@@ -63,18 +67,19 @@ function computeCancellationRights(cancellations, cycles) {
     const cycle = findCycleForDate(cycles, c.classDate);
     const key = cycle ? cycle.start : 'sem-ciclo';
     countPerCycleStart[key] = (countPerCycleStart[key] || 0) + 1;
-    const withinLimit = countPerCycleStart[key] <= 2;
+    const withinLimit = countPerCycleStart[key] <= s.maxMakeupsPerMonth;
 
     let deadline = cycle ? cycle.end : null;
-    if (withinLimit && c.makeupStatus === 'transferida' && cycle) {
+    const transferCount = c.transferCount || 0;
+    if (withinLimit && transferCount > 0 && cycle) {
       const idx = cycles.findIndex((cy) => cy.start === cycle.start);
-      const nextCycle = cycles[idx + 1];
-      deadline = nextCycle ? nextCycle.end : Utils.addDaysISO(Utils.addMonthsISO(cycle.end, 1), 0);
+      const targetCycle = cycles[idx + transferCount];
+      deadline = targetCycle ? targetCycle.end : Utils.addMonthsISO(cycle.end, transferCount);
     }
 
     results[c.id] = {
       hasRight: withinLimit,
-      reasonNoRight: withinLimit ? null : 'Limite de 2 desmarcações com direito a reposição já atingido neste ciclo.',
+      reasonNoRight: withinLimit ? null : `Limite de ${s.maxMakeupsPerMonth} ${s.maxMakeupsPerMonth === 1 ? 'desmarcação' : 'desmarcações'} com direito a reposição já atingido neste ciclo.`,
       deadline,
       cycle,
     };
@@ -83,10 +88,10 @@ function computeCancellationRights(cancellations, cycles) {
   cancellations.forEach((c) => {
     if (results[c.id] || c.isVacation) return;
     if (c.cancelledBy === 'professor') {
-      results[c.id] = { hasRight: true, reasonNoRight: null, deadline: Utils.addMonthsISO(c.classDate, 2), cycle: null };
+      results[c.id] = { hasRight: true, reasonNoRight: null, deadline: Utils.addMonthsISO(c.classDate, s.professorMonths), cycle: null };
       return;
     }
-    results[c.id] = { hasRight: false, reasonNoRight: 'Desmarcado com menos de 1h de antecedência (ou sem aviso).', deadline: null, cycle: null };
+    results[c.id] = { hasRight: false, reasonNoRight: `Desmarcado com menos de ${s.noticeHours}h de antecedência (ou sem aviso).`, deadline: null, cycle: null };
   });
 
   return results;
@@ -100,17 +105,20 @@ function makeupDisplayStatus(cancellation, rights) {
   if (cancellation.makeupStatus === 'reposta') return { label: 'Reposta ✓', level: 'leve', detail: '' };
 
   const expired = rights.deadline && Utils.daysUntil(rights.deadline) < 0;
-  if (cancellation.makeupStatus === 'transferida') {
-    if (expired) return { label: 'Expirada (transferida, prazo perdido)', level: 'alto', detail: '' };
-    return { label: `Transferida — repor até ${Utils.formatDateBR(rights.deadline)}`, level: 'moderado', detail: '' };
+  const transferCount = cancellation.transferCount || 0;
+  if (transferCount > 0) {
+    const suffix = transferCount > 1 ? ` (${transferCount}x)` : '';
+    if (expired) return { label: `Expirada (transferida${suffix}, prazo perdido)`, level: 'alto', detail: '' };
+    return { label: `Transferida${suffix} — repor até ${Utils.formatDateBR(rights.deadline)}`, level: 'moderado', detail: '' };
   }
   if (expired) return { label: 'Expirada (prazo perdido)', level: 'alto', detail: '' };
   return { label: `Pendente — repor até ${Utils.formatDateBR(rights.deadline)}`, level: 'moderado', detail: '' };
 }
 
 // Conta quantas aulas (pelos dias da semana cadastrados) caem no intervalo de férias,
-// e calcula a cobrança de 60% quando o horário é mantido reservado.
-function vacationCharge(student, startISO, endISO) {
+// e calcula a cobrança (settings.vacationChargePercent%) quando o horário é mantido reservado.
+function vacationCharge(student, startISO, endISO, settings) {
+  const s = settings || window.DEFAULT_SETTINGS;
   const weekDays = student?.weekDays || [];
   const dowKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
   let classesCount = 0;
@@ -123,7 +131,8 @@ function vacationCharge(student, startISO, endISO) {
     }
   }
   const rate = Number(student?.hourlyRate) || 0;
-  return { classesCount, fullValue: classesCount * rate, charge: classesCount * rate * 0.6 };
+  const pct = (Number(s.vacationChargePercent) || 0) / 100;
+  return { classesCount, fullValue: classesCount * rate, charge: classesCount * rate * pct };
 }
 
 window.PaymentLogic = {

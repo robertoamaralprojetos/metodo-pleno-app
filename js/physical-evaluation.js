@@ -59,7 +59,7 @@ function peRenderHtml() {
       </tr>`;
   }).join('');
 
-  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 2);
+  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 1);
 
   return `
   <div class="mp-card">
@@ -103,7 +103,7 @@ function peRenderHtml() {
       <h3 style="margin-bottom:0;">Evolução por métrica</h3>
       <button type="button" id="pe-report-btn" class="mp-btn mp-btn-outline" style="color:var(--verde-principal);border-color:var(--verde-suave);">📄 Baixar relatório</button>
     </div>
-    <div class="mp-sub" style="margin-top:10px;">${availableMetrics.length ? 'Um gráfico por métrica, com pelo menos 2 avaliações registradas.' : 'Registre pelo menos 2 avaliações para ver os gráficos de evolução.'}</div>
+    <div class="mp-sub" style="margin-top:10px;">${availableMetrics.length ? 'Um gráfico por métrica, com pelo menos 1 avaliação registrada.' : 'Registre pelo menos 1 avaliação para ver os gráficos de evolução.'}</div>
     ${availableMetrics.length ? `
     <div class="mp-metric-grid">
       ${availableMetrics.map((m) => `
@@ -165,9 +165,9 @@ function pePrintHtml(student, current, previous) {
 // Monta o relatório visual completo (todas as métricas com gráfico de evolução) dentro
 // de #mp-print-area e aciona a impressão/"Salvar como PDF" do navegador.
 function peBuildAndPrintReport(printArea, student, list) {
-  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 2);
+  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 1);
   if (!availableMetrics.length) {
-    Utils.toast('Registre pelo menos 2 avaliações para gerar o relatório.', 'error');
+    Utils.toast('Registre pelo menos 1 avaliação para gerar o relatório.', 'error');
     return;
   }
 

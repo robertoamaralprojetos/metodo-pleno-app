@@ -56,7 +56,7 @@ function evalRenderHtml() {
       </tr>`;
   }).join('');
 
-  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 2);
+  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
 
   return `
   <div class="mp-card">
@@ -100,12 +100,12 @@ function evalRenderHtml() {
       <h3 style="margin-bottom:0;">Evolução do Índice de Aptidão Funcional</h3>
       <button type="button" id="af-report-btn" class="mp-btn mp-btn-outline" style="color:var(--verde-principal);border-color:var(--verde-suave);">📄 Baixar relatório</button>
     </div>
-    <div class="mp-chart-box" id="mp-chart-indice" style="margin-top:14px;">${list.length < 2 ? '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre pelo menos 2 avaliações completas para ver a evolução do índice.</div>' : ''}</div>
+    <div class="mp-chart-box" id="mp-chart-indice" style="margin-top:14px;">${!list.length ? '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Registre pelo menos 1 avaliação completa para ver a evolução do índice.</div>' : ''}</div>
   </div>
 
   <div class="mp-card" style="margin-top:20px;">
     <h3>Evolução por teste</h3>
-    <div class="mp-sub" style="margin-top:10px;">${availableTestCharts.length ? 'Valor bruto de cada teste (não a pontuação), com pelo menos 2 avaliações registradas.' : 'Registre pelo menos 2 avaliações completas para ver os gráficos por teste.'}</div>
+    <div class="mp-sub" style="margin-top:10px;">${availableTestCharts.length ? 'Valor bruto de cada teste (não a pontuação), com pelo menos 1 avaliação registrada.' : 'Registre pelo menos 1 avaliação completa para ver os gráficos por teste.'}</div>
     ${availableTestCharts.length ? `
     <div class="mp-metric-grid">
       ${availableTestCharts.map((f) => `
@@ -171,7 +171,7 @@ function drawIndiceChart(container) {
     const assessment = SFT.computeFunctionalAssessment(rec.results, rec.age, rec.sex);
     return { label: Utils.formatDateBR(rec.date).slice(0, 5), value: assessment.complete ? assessment.index : null };
   }).filter((p) => p.value !== null);
-  if (points.length < 2) return;
+  if (!points.length) return;
   target.innerHTML = '';
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 100 }));
 }
@@ -197,10 +197,10 @@ function afBuildAndPrintReport(printArea, student, list) {
     })
     .filter((p) => p.value !== null);
 
-  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 2);
+  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
 
-  if (indicePoints.length < 2 && !availableTestCharts.length) {
-    Utils.toast('Registre pelo menos 2 avaliações completas para gerar o relatório.', 'error');
+  if (!indicePoints.length && !availableTestCharts.length) {
+    Utils.toast('Registre pelo menos 1 avaliação completa para gerar o relatório.', 'error');
     return;
   }
 
@@ -212,7 +212,7 @@ function afBuildAndPrintReport(printArea, student, list) {
     </div>
   `));
 
-  if (indicePoints.length >= 2) {
+  if (indicePoints.length >= 1) {
     const section = Utils.el('<div class="mp-report-section"><h3 style="font-family:Georgia,serif;font-size:15px;margin-bottom:6px;">Índice de Aptidão Funcional (0–100)</h3></div>');
     section.appendChild(Charts.lineChart(indicePoints, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 100, width: 680, height: 190 }));
     printArea.appendChild(section);
