@@ -20,15 +20,21 @@ function planRenderHtml() {
     `<option value="${p.id}">${fmtDate(p.date)} · ${p.items.length} exercícios</option>`
   ).join('');
 
+  const editingId = AppState.planEditItemId;
+  const editingItem = editingId ? itens.find((it) => it.id === editingId) || null : null;
+
   const itemRows = itens.map((it, i) => `
-    <tr>
+    <tr${it.id === editingId ? ' style="background:var(--verde-pallido);"' : ''}>
       <td>${i + 1}</td>
       <td>${Utils.escapeHtml(it.exerciseName)}</td>
       <td>${it.series}×${it.reps}</td>
       <td>${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))}</td>
       <td>${restLabel(it.restSeconds)}</td>
       <td>${it.completed ? '<span class="mp-pill mp-pill-leve">concluído</span>' : '<span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">pendente</span>'}</td>
-      <td><button class="mp-btn-danger" data-del-planitem="${it.id}" type="button">Remover</button></td>
+      <td style="white-space:nowrap;">
+        <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-planitem="${it.id}" type="button">${it.id === editingId ? 'Editando…' : 'Editar'}</button>
+        <button class="mp-btn-danger" data-del-planitem="${it.id}" type="button">Remover</button>
+      </td>
     </tr>`).join('');
 
   const printRows = itens.map((it, i) => `
@@ -67,27 +73,29 @@ function planRenderHtml() {
     </div>` : ''}
 
     <form id="mp-planitem-form">
+      ${editingItem ? `<div class="mp-sub" style="margin-top:0;color:var(--verde-principal);font-weight:700;">✏️ Editando "${Utils.escapeHtml(editingItem.exerciseName)}" — ajuste os valores e salve.</div>` : ''}
       <div class="mp-form-row">
-        <div class="mp-field"><label>Exercício</label><input type="text" id="mp-p-exercicio" list="mp-ex-list-plano" placeholder="Ex: Remada sentada" required></div>
-        <div class="mp-field"><label>Séries alvo</label><input type="number" id="mp-p-series" min="1" step="1" value="3" required></div>
-        <div class="mp-field"><label>Reps alvo</label><input type="number" id="mp-p-reps" min="1" step="1" value="12" required></div>
-        <div class="mp-field"><label>Carga alvo</label><input type="number" id="mp-p-carga" min="0" step="0.5" value="0" required></div>
+        <div class="mp-field"><label>Exercício</label><input type="text" id="mp-p-exercicio" list="mp-ex-list-plano" placeholder="Ex: Remada sentada" value="${editingItem ? Utils.escapeHtml(editingItem.exerciseName) : ''}" required></div>
+        <div class="mp-field"><label>Séries alvo</label><input type="number" id="mp-p-series" min="1" step="1" value="${editingItem ? editingItem.series : 3}" required></div>
+        <div class="mp-field"><label>Reps alvo</label><input type="number" id="mp-p-reps" min="1" step="1" value="${editingItem ? editingItem.reps : 12}" required></div>
+        <div class="mp-field"><label>Carga alvo</label><input type="number" id="mp-p-carga" min="0" step="0.5" value="${editingItem ? editingItem.load : 0}" required></div>
       </div>
       ${datalist}
       <div class="mp-form-row mp-row2">
-        ${unitFieldHtml('mp-p', '', '', elasticColorList())}
+        ${unitFieldHtml('mp-p', editingItem?.unit || '', editingItem?.unitDetail || '', elasticColorList())}
         <div class="mp-field">
           <label>Tempo de descanso</label>
           <div style="display:flex;gap:6px;align-items:center;">
-            <input type="number" id="mp-p-rest-min" min="0" step="1" value="1" style="width:70px;" aria-label="Minutos">
+            <input type="number" id="mp-p-rest-min" min="0" step="1" value="${editingItem ? Math.floor(editingItem.restSeconds / 60) : 1}" style="width:70px;" aria-label="Minutos">
             <span style="font-size:12.5px;color:var(--texto-suave);">min</span>
-            <input type="number" id="mp-p-rest-sec" min="0" max="59" step="5" value="0" style="width:70px;" aria-label="Segundos">
+            <input type="number" id="mp-p-rest-sec" min="0" max="59" step="5" value="${editingItem ? editingItem.restSeconds % 60 : 0}" style="width:70px;" aria-label="Segundos">
             <span style="font-size:12.5px;color:var(--texto-suave);">seg</span>
           </div>
         </div>
       </div>
-      <div class="mp-form-actions">
-        <button type="button" id="mp-planitem-submit" class="mp-btn mp-btn-ghost" style="border-color:var(--verde-suave);color:var(--verde-principal);">+ Adicionar ao plano</button>
+      <div class="mp-form-actions" style="${editingItem ? 'justify-content:space-between;' : ''}">
+        ${editingItem ? '<button type="button" id="mp-planitem-cancel-edit" class="mp-btn mp-btn-outline" style="color:var(--texto-suave);border-color:var(--borda);">Cancelar edição</button>' : ''}
+        <button type="button" id="mp-planitem-submit" class="mp-btn ${editingItem ? 'mp-btn-gold' : 'mp-btn-ghost'}" style="${editingItem ? 'background:var(--verde-principal);color:#fff;' : 'border-color:var(--verde-suave);color:var(--verde-principal);'}">${editingItem ? '💾 Salvar alterações' : '+ Adicionar ao plano'}</button>
       </div>
     </form>
   </div>
@@ -99,7 +107,7 @@ function planRenderHtml() {
     </div>
     <div class="mp-sub" style="margin-top:10px;">${itens.length ? 'Leve este plano impresso para lugares sem internet — anote os valores reais à mão e transcreva no painel depois.' : 'Nenhum exercício adicionado ainda para esta data.'}</div>
     ${itens.length ? `
-    <div style="overflow-x:auto;">
+    <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>#</th><th>Exercício</th><th>Séries×Rep</th><th>Carga</th><th>Descanso</th><th>Status</th><th></th></tr></thead>
       <tbody>${itemRows}</tbody>
@@ -119,7 +127,7 @@ function planRenderHtml() {
 
 function planBindEvents(container) {
   const planDateInput = container.querySelector('#mp-plan-date');
-  if (planDateInput) planDateInput.addEventListener('change', () => { AppState.planDate = planDateInput.value; render(); });
+  if (planDateInput) planDateInput.addEventListener('change', () => { AppState.planDate = planDateInput.value; AppState.planEditItemId = null; render(); });
 
   const stageSelect = container.querySelector('#mp-plan-stage');
   if (stageSelect) stageSelect.addEventListener('change', async () => {
@@ -139,6 +147,7 @@ function planBindEvents(container) {
     basePlan.items.forEach((it) => {
       target.items.push({ ...it, id: dbUuid(), completed: false, sessionId: null });
     });
+    AppState.planEditItemId = null;
     render();
     await AppShell.guardedPut(DB.STORES.lessonPlans, target);
     Utils.toast('Plano copiado ✓', 'success');
@@ -152,8 +161,7 @@ function planBindEvents(container) {
       const restMin = parseInt(container.querySelector('#mp-p-rest-min').value, 10) || 0;
       const restSec = parseInt(container.querySelector('#mp-p-rest-sec').value, 10) || 0;
       const { unit, unitDetail } = readUnitFieldValues(container, 'mp-p');
-      const item = {
-        id: dbUuid(),
+      const fields = {
         exerciseName,
         series: parseInt(container.querySelector('#mp-p-series').value, 10) || 0,
         reps: parseInt(container.querySelector('#mp-p-reps').value, 10) || 0,
@@ -161,21 +169,42 @@ function planBindEvents(container) {
         unit,
         unitDetail,
         restSeconds: restMin * 60 + restSec,
-        completed: false,
-        sessionId: null,
       };
       const plan = ensurePlan(AppState.planDate);
-      plan.items.push(item);
-      render();
-      Utils.toast('Adicionado ao plano ✓', 'success');
+
+      if (AppState.planEditItemId) {
+        const item = plan.items.find((it) => it.id === AppState.planEditItemId);
+        if (!item) { AppState.planEditItemId = null; render(); return; }
+        Object.assign(item, fields);
+        AppState.planEditItemId = null;
+        render();
+        Utils.toast('Exercício atualizado ✓', 'success');
+      } else {
+        plan.items.push({ id: dbUuid(), ...fields, completed: false, sessionId: null });
+        render();
+        Utils.toast('Adicionado ao plano ✓', 'success');
+      }
       await AppShell.guardedPut(DB.STORES.lessonPlans, plan);
     });
   }
+
+  const planItemCancelBtn = container.querySelector('#mp-planitem-cancel-edit');
+  if (planItemCancelBtn) planItemCancelBtn.addEventListener('click', () => { AppState.planEditItemId = null; render(); });
+
+  container.querySelectorAll('[data-edit-planitem]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      AppState.planEditItemId = btn.dataset.editPlanitem;
+      render();
+      const form = document.getElementById('mp-planitem-form');
+      if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
 
   container.querySelectorAll('[data-del-planitem]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const plan = getPlanByDate(AppState.planDate);
       if (plan) plan.items = plan.items.filter((it) => it.id !== btn.dataset.delPlanitem);
+      if (AppState.planEditItemId === btn.dataset.delPlanitem) AppState.planEditItemId = null;
       render();
       if (plan) await AppShell.guardedPut(DB.STORES.lessonPlans, plan);
     });

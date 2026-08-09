@@ -48,7 +48,7 @@ function regRenderHtml() {
       <div class="mp-field"><label>Data do preenchimento</label><input type="date" id="r-filldate" value="${student.fillDate || Utils.todayISO()}"></div>
       <div class="mp-field"><label>Nome completo</label><input id="r-name" value="${Utils.escapeHtml(student.name || '')}"></div>
     </div>
-    <div class="mp-form-row" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="mp-form-row mp-row3">
       <div class="mp-field"><label>Data de nascimento</label><input type="date" id="r-birth" value="${student.birthDate || ''}"></div>
       <div class="mp-field"><label>Idade</label><input id="r-age-display" value="${age != null ? age + ' anos' : '—'}" disabled></div>
       <div class="mp-field"><label>Sexo</label>

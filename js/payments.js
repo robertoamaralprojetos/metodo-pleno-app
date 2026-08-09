@@ -80,7 +80,7 @@ function payRenderHtml() {
       </div>
     </form>
     ${payments.length ? `
-    <div style="overflow-x:auto;margin-top:10px;">
+    <div class="mp-table-scroll" style="margin-top:10px;">
     <table class="mp-table">
       <thead><tr><th>Data</th><th>Valor</th><th></th></tr></thead>
       <tbody>${paymentRows}</tbody>
@@ -136,7 +136,7 @@ function payRenderHtml() {
       </div>
     </form>
     ${cancellations.length ? `
-    <div style="overflow-x:auto;margin-top:14px;">
+    <div class="mp-table-scroll" style="margin-top:14px;">
     <table class="mp-table">
       <thead><tr><th>Tipo</th><th>Data(s)</th><th>Aviso</th><th>Status</th><th></th></tr></thead>
       <tbody>${cancelRows}</tbody>

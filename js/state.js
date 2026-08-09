@@ -14,6 +14,7 @@ const AppState = {
   execDate: null,
   adminData: null,
   settings: null,
+  planEditItemId: null,
 };
 
 async function loadStudentData(id) {
@@ -44,6 +45,7 @@ async function switchStudent(id) {
   AppState.currentId = id;
   AppState.planDate = null;
   AppState.execDate = null;
+  AppState.planEditItemId = null;
   AppState.data = id ? await loadStudentData(id) : { ...EMPTY_STUDENT_DATA };
   render();
 }

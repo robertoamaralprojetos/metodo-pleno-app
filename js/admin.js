@@ -68,7 +68,7 @@ function adminRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Situação dos alunos</h3>
     <div class="mp-sub" style="margin-top:10px;">Status calculado a partir do ciclo de pagamento de cada aluno (aba Controle de Pagamento — compara a data prevista do próximo pagamento com hoje).</div>
-    <div style="overflow-x:auto;">
+    <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>Aluno</th><th>Status</th><th>Ciclo atual desde</th><th>Próximo pagamento previsto</th></tr></thead>
       <tbody>${statusRows}</tbody>

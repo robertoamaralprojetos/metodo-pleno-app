@@ -79,7 +79,7 @@ function evalRenderHtml() {
           <option value="M" ${student?.sex === 'M' ? 'selected' : ''}>Masculino</option>
         </select>
       </div>
-      <div class="mp-form-row" style="grid-template-columns:repeat(5,1fr);">
+      <div class="mp-form-row mp-row5">
         ${TEST_FIELDS.map((f) => `
           <div class="mp-field">
             <label>${Utils.escapeHtml(f.label)}</label>
@@ -120,10 +120,12 @@ function evalRenderHtml() {
   ${list.length ? `
   <div class="mp-card" style="margin-top:20px;">
     <h3>Histórico de avaliações</h3>
+    <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>Data</th><th>Índice</th><th>Classificação</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>` : ''}
 
   <div id="mp-print-area" class="mp-print-only"></div>`;
@@ -146,7 +148,7 @@ function recomputePreview(container) {
   const previewEl = container.querySelector('#mp-af-preview');
   const rowsHtml = TEST_FIELDS.map((f) => resultRowHtml(f, assessment.perTest[f.key])).join('');
   previewEl.innerHTML = `
-    <div style="overflow-x:auto;">
+    <div class="mp-table-scroll">
       <table class="mp-table">
         <thead><tr><th>Teste</th><th>Resultado</th><th>P25</th><th>P50</th><th>P75</th><th>Classificação</th><th>Pontos</th></tr></thead>
         <tbody>${rowsHtml}</tbody>

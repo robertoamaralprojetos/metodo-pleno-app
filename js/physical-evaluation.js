@@ -66,7 +66,7 @@ function peRenderHtml() {
     <h3>Nova avaliação física</h3>
     <div class="mp-sub" style="margin-top:10px;">Antropometria e composição corporal — repita a cada ciclo (ex: 3 em 3 meses) para acompanhar a evolução.</div>
     <form id="mp-pe-form">
-      <div class="mp-form-row" style="grid-template-columns:1fr 1.4fr 1fr 1fr;">
+      <div class="mp-form-row mp-row-pe-header">
         <div class="mp-field"><label>Data da avaliação</label><input type="date" id="pe-date" value="${today}"></div>
         <div class="mp-field"><label>Nome do aluno</label><input value="${Utils.escapeHtml(student.name)}" disabled></div>
         <div class="mp-field"><label>Idade</label><input value="${age != null ? age + ' anos' : '—'}" disabled></div>
@@ -79,14 +79,14 @@ function peRenderHtml() {
       <div id="pe-imc-preview"></div>
 
       <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Bioimpedância</h4>
-      <div class="mp-form-row" style="grid-template-columns:repeat(5,1fr);">
+      <div class="mp-form-row mp-row5">
         ${BIOIMPEDANCE_FIELDS.map((f) => `
           <div class="mp-field"><label>${Utils.escapeHtml(f.label)}</label><input type="number" step="0.1" id="pe-${f.key}"><small style="color:var(--texto-suave);">${f.unit}</small></div>
         `).join('')}
       </div>
 
       <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Circunferências (cm)</h4>
-      <div class="mp-form-row" style="grid-template-columns:repeat(4,1fr);">
+      <div class="mp-form-row mp-row4">
         ${CIRCUMFERENCE_FIELDS.map((f) => `
           <div class="mp-field"><label>${Utils.escapeHtml(f.label)}</label><input type="number" min="0" step="0.1" id="pe-circ-${f.key}"></div>
         `).join('')}
@@ -118,7 +118,7 @@ function peRenderHtml() {
   ${listDesc.length ? `
   <div class="mp-card" style="margin-top:20px;">
     <h3>Histórico de avaliações</h3>
-    <div style="overflow-x:auto;">
+    <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th></th></tr></thead>
       <tbody>${rows}</tbody>

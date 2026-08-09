@@ -155,7 +155,7 @@ function execRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Histórico de sessões</h3>
     ${sorted.length ? `
-    <div style="overflow-x:auto;">
+    <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>Data</th><th>Exercício</th><th>Séries×Rep</th><th>Carga</th><th>Borg</th><th>Obs.</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
