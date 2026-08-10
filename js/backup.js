@@ -1,5 +1,7 @@
 // Backup completo (todos os alunos e dados) em JSON — para não perder tudo
 // se o aparelho for trocado ou perdido. Local, sem servidor.
+// DB.exportAll() já percorre TODAS as stores (incluindo "students"), então o arquivo gerado
+// sempre inclui todos os alunos cadastrados de uma vez — não só o aluno selecionado no momento.
 
 async function exportBackup() {
   try {
@@ -14,10 +16,25 @@ async function exportBackup() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    await saveSettingsPatch({ lastBackupAt: Utils.todayISO() });
+    render();
     Utils.toast('Backup exportado ✓ — guarde este arquivo em local seguro.', 'success');
   } catch (e) {
     Utils.toast('Não foi possível gerar o backup: ' + (e.message || 'erro desconhecido'), 'error');
   }
+}
+
+// Dias desde o último backup (null se nunca foi feito).
+function daysSinceBackup(lastBackupAt) {
+  if (!lastBackupAt) return null;
+  return -Utils.daysUntil(lastBackupAt);
+}
+
+// Verdadeiro se nunca houve backup, ou se já se passaram mais de 7 dias desde o último.
+function needsBackupReminder(settings) {
+  if (!settings) return false;
+  if (!settings.lastBackupAt) return true;
+  return daysSinceBackup(settings.lastBackupAt) > 7;
 }
 
 async function importBackup(file) {
@@ -35,4 +52,4 @@ async function importBackup(file) {
   }
 }
 
-window.BackupModule = { exportBackup, importBackup };
+window.BackupModule = { exportBackup, importBackup, daysSinceBackup, needsBackupReminder };

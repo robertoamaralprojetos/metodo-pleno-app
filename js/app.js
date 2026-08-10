@@ -1,10 +1,10 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.5.0';
+const APP_VERSION = 'v1.6.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
-  { title: '⚙️ Configurações', text: 'Personalize o nome do profissional exibido no cabeçalho e as regras de desmarcação/reposição/férias — o texto explicativo é gerado automaticamente a partir desses valores.' },
+  { title: '⚙️ Configurações', text: 'Personalize o nome do profissional exibido no cabeçalho, as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não), atualizável a qualquer momento.' },
@@ -21,6 +21,15 @@ function openHelpModal() {
       <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto;">
         <h3 style="font-family:'Fraunces',serif;margin-bottom:12px;">Como usar o Método Pleno</h3>
         ${HELP_TOPICS.map((t) => `<p style="margin-bottom:10px;"><strong>${Utils.escapeHtml(t.title)}</strong><br><span style="font-size:13px;color:var(--texto-suave);">${Utils.escapeHtml(t.text)}</span></p>`).join('')}
+        <h3 style="font-family:'Fraunces',serif;font-size:16px;margin:18px 0 10px;">📱 Trocando de celular/tablet/computador?</h3>
+        <ol style="font-size:13px;color:var(--texto-suave);padding-left:18px;line-height:1.65;margin:0 0 6px;">
+          <li>No aparelho atual, clique em <strong>💾 Backup (JSON)</strong> no topo do app.</li>
+          <li>Envie esse arquivo para fora do aparelho — e-mail para você mesmo, Google Drive, etc. Evite depender só do WhatsApp: ele pode alterar o arquivo.</li>
+          <li>No aparelho novo, abra o mesmo link do app (e instale-o, se aparecer o botão "⬇ Instalar app").</li>
+          <li>Baixe o arquivo de backup no aparelho novo.</li>
+          <li>No app, clique em <strong>Restaurar backup</strong> e selecione o arquivo baixado.</li>
+          <li>Confira se todos os alunos e o histórico vieram corretamente antes de descartar/resetar o aparelho antigo.</li>
+        </ol>
         <div class="modal__actions">
           <button class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;" data-action="close" type="button">Entendi</button>
         </div>
@@ -55,6 +64,11 @@ function render() {
   const root = document.getElementById('mp-root');
   if (AppState.loading) {
     root.innerHTML = '<div class="mp-loading">Preparando o painel do Método Pleno…</div>';
+    return;
+  }
+  if (AppState.settings?.pinHash && !AppState.pinUnlocked) {
+    root.innerHTML = PinLock.renderLockScreen();
+    PinLock.bindLockEvents(root);
     return;
   }
   try {
@@ -106,6 +120,11 @@ function renderHeader() {
         </div>
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
+      ${BackupModule.needsBackupReminder(AppState.settings) ? `
+      <div class="mp-warning-banner mp-warning-soft">
+        💾 ${AppState.settings?.lastBackupAt ? `Faz mais de 7 dias que você não faz backup (último em ${Utils.formatDateBR(AppState.settings.lastBackupAt)}).` : 'Você ainda não fez nenhum backup dos dados.'}
+        <button type="button" id="mp-backup-reminder-btn" class="mp-btn mp-btn-outline mp-btn-sm" style="margin-left:10px;">Fazer backup agora</button>
+      </div>` : ''}
       <div class="mp-student-bar">
         ${AppState.students.length ? `<select id="mp-select-student">${options}</select>` : '<span style="color:rgba(251,250,246,.7);font-size:13.5px;">Nenhum aluno cadastrado ainda —</span>'}
         <input id="mp-new-student" type="text" placeholder="Nome do novo aluno" style="min-width:180px;">
@@ -205,6 +224,9 @@ function bindHeaderEvents() {
 
   const exportBackupBtn = document.getElementById('mp-export-backup');
   if (exportBackupBtn) exportBackupBtn.addEventListener('click', () => BackupModule.exportBackup());
+
+  const backupReminderBtn = document.getElementById('mp-backup-reminder-btn');
+  if (backupReminderBtn) backupReminderBtn.addEventListener('click', () => BackupModule.exportBackup());
 
   const importBtn = document.getElementById('mp-import-backup');
   const importFile = document.getElementById('mp-import-file');

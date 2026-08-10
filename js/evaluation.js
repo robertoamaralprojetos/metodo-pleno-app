@@ -57,11 +57,13 @@ function evalRenderHtml() {
   }).join('');
 
   const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
+  const reassessment = list.length ? Utils.reassessmentStatus(list[0].date) : null;
 
   return `
   <div class="mp-card">
     <h3>Nova avaliação funcional</h3>
     <div class="mp-sub">Senior Fitness Test (Rikli &amp; Jones) — preencha os 5 testes para gerar o Índice de Aptidão Funcional (0–100) automaticamente.</div>
+    ${reassessment ? `<div style="margin:-4px 0 14px;"><span class="mp-pill mp-pill-${reassessment.level}">${Utils.escapeHtml(reassessment.text)}</span></div>` : ''}
     <div class="mp-af-band">
       <div style="background:var(--alerta);"></div><div style="background:var(--dourado-claro);"></div>
       <div style="background:var(--verde-pallido);"></div><div style="background:var(--verde-suave);"></div>

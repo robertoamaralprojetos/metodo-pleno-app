@@ -13,6 +13,9 @@ const DEFAULT_SETTINGS = {
   maxTransfers: 1,
   professorMonths: 2,
   vacationChargePercent: 60,
+  lastBackupAt: null,
+  pinHash: null,
+  pinSalt: null,
 };
 
 async function loadSettings() {
@@ -54,6 +57,104 @@ function readSettingsForm(container) {
     professorMonths: Math.max(1, parseInt(container.querySelector('#cfg-professor-months').value, 10) || 1),
     vacationChargePercent: Math.min(100, Math.max(0, Number(container.querySelector('#cfg-vacation-percent').value) || 0)),
   };
+}
+
+// Card "Segurança — PIN de acesso", dentro da mesma tela de Configurações. O PIN em si
+// nunca é armazenado — só um hash (com salt) — e nunca sai deste aparelho.
+function settingsPinSectionHtml(s) {
+  const hasPin = !!s.pinHash;
+  return `
+  <div class="mp-card" style="margin-top:20px;">
+    <h3>Segurança — PIN de acesso</h3>
+    <div class="mp-sub" style="margin-top:10px;">Protege a abertura do app com um PIN numérico (4 a 6 dígitos). Fica salvo de forma criptografada (hash) só neste aparelho — nunca em texto simples, nunca enviado a nenhum servidor.</div>
+
+    ${hasPin ? `
+      <div style="margin-bottom:14px;"><span class="mp-pill mp-pill-leve">PIN ativo ✓</span></div>
+      <div class="mp-form-row mp-row2">
+        <button type="button" id="cfg-pin-change-toggle" class="mp-btn mp-btn-ghost" style="border-color:var(--verde-suave);color:var(--verde-principal);">Alterar PIN</button>
+        <button type="button" id="cfg-pin-remove-toggle" class="mp-btn mp-btn-ghost" style="border-color:var(--alerta);color:var(--alerta);">Remover PIN</button>
+      </div>
+
+      <div id="cfg-pin-change-form" style="display:none;margin-top:14px;">
+        <div class="mp-form-row mp-row3">
+          <div class="mp-field"><label>PIN atual</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-current-for-change" autocomplete="off"></div>
+          <div class="mp-field"><label>Novo PIN</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-new" autocomplete="off"></div>
+          <div class="mp-field"><label>Confirmar novo PIN</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-new-confirm" autocomplete="off"></div>
+        </div>
+        <div class="mp-form-actions">
+          <button type="button" id="cfg-pin-change-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar novo PIN</button>
+        </div>
+      </div>
+
+      <div id="cfg-pin-remove-form" style="display:none;margin-top:14px;">
+        <div class="mp-field" style="max-width:220px;"><label>PIN atual</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-current-for-remove" autocomplete="off"></div>
+        <div class="mp-form-actions">
+          <button type="button" id="cfg-pin-remove-save" class="mp-btn" style="background:var(--alerta);color:#fff;">Remover PIN</button>
+        </div>
+      </div>
+    ` : `
+      <div class="mp-form-row mp-row2">
+        <div class="mp-field"><label>Novo PIN (4 a 6 dígitos)</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-set-new" autocomplete="off"></div>
+        <div class="mp-field"><label>Confirmar PIN</label><input type="password" inputmode="numeric" maxlength="6" id="cfg-pin-set-confirm" autocomplete="off"></div>
+      </div>
+      <div class="mp-form-actions">
+        <button type="button" id="cfg-pin-set-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Definir PIN</button>
+      </div>
+    `}
+
+    <p style="font-size:11.5px;color:var(--texto-suave);margin-top:14px;line-height:1.5;">⚠ Se você esquecer o PIN, <strong>não há como recuperar o acesso pelo app</strong> — a única forma é apagar os dados deste site pelo navegador (isso apaga TUDO, inclusive os alunos) e restaurar pelo último Backup (JSON). Guarde o PIN em um lugar seguro e mantenha os backups em dia.</p>
+  </div>
+  `;
+}
+
+function settingsBindPinEvents(container) {
+  const changeToggle = container.querySelector('#cfg-pin-change-toggle');
+  const changeForm = container.querySelector('#cfg-pin-change-form');
+  changeToggle?.addEventListener('click', () => {
+    changeForm.style.display = changeForm.style.display === 'none' ? '' : 'none';
+  });
+
+  const removeToggle = container.querySelector('#cfg-pin-remove-toggle');
+  const removeForm = container.querySelector('#cfg-pin-remove-form');
+  removeToggle?.addEventListener('click', () => {
+    removeForm.style.display = removeForm.style.display === 'none' ? '' : 'none';
+  });
+
+  container.querySelector('#cfg-pin-set-save')?.addEventListener('click', async () => {
+    const pin = container.querySelector('#cfg-pin-set-new').value;
+    const confirmPin = container.querySelector('#cfg-pin-set-confirm').value;
+    if (!PinLock.isValidFormat(pin)) { Utils.toast('O PIN deve ter de 4 a 6 dígitos numéricos.', 'error'); return; }
+    if (pin !== confirmPin) { Utils.toast('Os PINs não coincidem.', 'error'); return; }
+    const salt = PinLock.generateSalt();
+    const hash = await PinLock.hashPin(pin, salt);
+    await saveSettingsPatch({ pinHash: hash, pinSalt: salt });
+    Utils.toast('PIN definido ✓ — o app vai pedir esse PIN a partir de agora.', 'success');
+    render();
+  });
+
+  container.querySelector('#cfg-pin-change-save')?.addEventListener('click', async () => {
+    const current = container.querySelector('#cfg-pin-current-for-change').value;
+    const newPin = container.querySelector('#cfg-pin-new').value;
+    const confirmPin = container.querySelector('#cfg-pin-new-confirm').value;
+    const ok = await PinLock.verifyPin(current, AppState.settings);
+    if (!ok) { Utils.toast('PIN atual incorreto.', 'error'); return; }
+    if (!PinLock.isValidFormat(newPin)) { Utils.toast('O novo PIN deve ter de 4 a 6 dígitos numéricos.', 'error'); return; }
+    if (newPin !== confirmPin) { Utils.toast('Os PINs não coincidem.', 'error'); return; }
+    const salt = PinLock.generateSalt();
+    const hash = await PinLock.hashPin(newPin, salt);
+    await saveSettingsPatch({ pinHash: hash, pinSalt: salt });
+    Utils.toast('PIN alterado ✓', 'success');
+    render();
+  });
+
+  container.querySelector('#cfg-pin-remove-save')?.addEventListener('click', async () => {
+    const current = container.querySelector('#cfg-pin-current-for-remove').value;
+    const ok = await PinLock.verifyPin(current, AppState.settings);
+    if (!ok) { Utils.toast('PIN atual incorreto.', 'error'); return; }
+    await saveSettingsPatch({ pinHash: null, pinSalt: null });
+    Utils.toast('PIN removido ✓ — o app não vai mais pedir PIN.', 'success');
+    render();
+  });
 }
 
 function settingsRenderHtml() {
@@ -99,6 +200,8 @@ function settingsRenderHtml() {
       <button type="button" id="cfg-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar configurações</button>
     </div>
   </div>
+
+  ${settingsPinSectionHtml(s)}
   `;
 }
 
@@ -126,6 +229,8 @@ function settingsBindEvents(container) {
     Utils.toast('Configurações salvas ✓', 'success');
     render();
   });
+
+  settingsBindPinEvents(container);
 }
 
 window.DEFAULT_SETTINGS = DEFAULT_SETTINGS;

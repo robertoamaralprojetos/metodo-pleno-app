@@ -60,11 +60,13 @@ function peRenderHtml() {
   }).join('');
 
   const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 1);
+  const reassessment = listDesc.length ? Utils.reassessmentStatus(listDesc[0].date) : null;
 
   return `
   <div class="mp-card">
     <h3>Nova avaliação física</h3>
     <div class="mp-sub" style="margin-top:10px;">Antropometria e composição corporal — repita a cada ciclo (ex: 3 em 3 meses) para acompanhar a evolução.</div>
+    ${reassessment ? `<div style="margin:0 0 14px;"><span class="mp-pill mp-pill-${reassessment.level}">${Utils.escapeHtml(reassessment.text)}</span></div>` : ''}
     <form id="mp-pe-form">
       <div class="mp-form-row mp-row-pe-header">
         <div class="mp-field"><label>Data da avaliação</label><input type="date" id="pe-date" value="${today}"></div>

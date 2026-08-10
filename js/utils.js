@@ -94,6 +94,23 @@ function daysUntil(iso) {
   return Math.round((target - today) / 86400000);
 }
 
+// Status da próxima reavaliação prevista (padrão: 4 meses após a mais recente registrada),
+// no mesmo padrão de alerta usado para o atestado médico: 'neutro' se faltar mais de 30 dias,
+// 'moderado' (atenção) se faltar até 30 dias, 'alto' se a data já passou. Usado de forma
+// independente em Avaliação Funcional e Avaliação Física.
+function reassessmentStatus(mostRecentDateISO, monthsAhead = 4) {
+  if (!mostRecentDateISO) return null;
+  const nextDate = addMonthsISO(mostRecentDateISO, monthsAhead);
+  const days = daysUntil(nextDate);
+  if (days < 0) {
+    return { level: 'alto', nextDate, text: `Reavaliação atrasada — estava prevista para ${formatDateBR(nextDate)} (${Math.abs(days)} dia(s) atrás)` };
+  }
+  if (days <= 30) {
+    return { level: 'moderado', nextDate, text: `Próxima reavaliação prevista: ${formatDateBR(nextDate)} (em ${days} dia(s))` };
+  }
+  return { level: 'neutro', nextDate, text: `Próxima reavaliação prevista: ${formatDateBR(nextDate)}` };
+}
+
 function formatBRL(value) {
   const n = Number(value) || 0;
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -170,6 +187,7 @@ window.Utils = {
   addMonthsISO,
   addYearsISO,
   daysUntil,
+  reassessmentStatus,
   formatBRL,
   formatMMSS,
   formatRestLabel,

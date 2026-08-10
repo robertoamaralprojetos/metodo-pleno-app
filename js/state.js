@@ -15,6 +15,7 @@ const AppState = {
   adminData: null,
   settings: null,
   planEditItemId: null,
+  pinUnlocked: true,
 };
 
 async function loadStudentData(id) {
@@ -32,6 +33,7 @@ async function loadStudentData(id) {
 
 async function stateInit() {
   AppState.settings = await loadSettings();
+  AppState.pinUnlocked = !AppState.settings.pinHash;
   AppState.students = await StudentsData.listStudents();
   if (AppState.students.length) {
     AppState.currentId = AppState.students[0].id;
