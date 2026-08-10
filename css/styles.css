@@ -204,6 +204,7 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-pill-leve{ background:var(--verde-pallido); color:var(--verde-principal); }
 .mp-pill-moderado{ background:var(--dourado-claro); color:var(--dourado-escuro); }
 .mp-pill-alto{ background:var(--alerta-fundo); color:var(--alerta); }
+.mp-pill-neutro{ background:var(--borda); color:var(--texto-suave); }
 
 /* dashboard */
 .mp-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
@@ -257,6 +258,12 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   color:#F3E3DC; padding:9px 14px; border-radius:9px; font-size:12.5px; font-weight:600;
   position:relative; z-index:1;
 }
+/* Variante "leve" (lembrete de backup) — mesmo formato, tom dourado em vez de alerta
+   vermelho, já que não é um erro, só um lembrete. */
+.mp-warning-banner.mp-warning-soft{
+  background:rgba(184,146,74,.18); border:1px solid rgba(184,146,74,.45); color:var(--dourado-claro);
+}
+.mp-warning-banner + .mp-warning-banner{ margin-top:8px; }
 
 .mp-toast{
   position:fixed; right:22px; bottom:22px; z-index:9999;
@@ -364,6 +371,27 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   .mp-kpis{ grid-template-columns:1fr 1fr; }
   .mp-logo{ height:40px; }
 }
+
+/* ---------- Bloqueio por PIN ---------- */
+.mp-pin-lock{
+  position:fixed; inset:0; z-index:500;
+  background: linear-gradient(160deg, var(--verde-profundo) 0%, var(--verde-principal) 62%, var(--verde-suave) 100%);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.mp-pin-lock-card{
+  background:var(--papel); border-radius:var(--radius); padding:32px 28px; max-width:340px; width:100%;
+  text-align:center; box-shadow:0 12px 40px rgba(21,34,25,.35);
+}
+.mp-pin-lock-logo{ height:46px; margin-bottom:12px; }
+.mp-pin-lock-card h2{ font-family:'Fraunces',serif; font-size:20px; margin-bottom:4px; color:var(--verde-principal); }
+.mp-pin-input{
+  display:block; width:100%; font-size:26px; letter-spacing:10px; text-align:center; padding:12px;
+  border-radius:10px; border:1px solid var(--borda); margin:18px 0 8px; font-family:'Manrope',sans-serif;
+  color:var(--texto); background:#fff;
+}
+.mp-pin-input:focus{ outline:none; border-color:var(--verde-suave); box-shadow:0 0 0 3px var(--verde-pallido); }
+.mp-pin-error{ color:var(--alerta); font-size:12.5px; font-weight:700; min-height:18px; margin-bottom:8px; }
+.mp-pin-forgot{ font-size:11.5px; color:var(--texto-suave); margin:18px 0 0; line-height:1.55; }
 
 @media (max-width:480px){
   /* Checklist de execução (Registro de Treino): Séries/Reps/Carga/Borg em 1 coluna. */
