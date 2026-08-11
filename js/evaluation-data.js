@@ -133,14 +133,54 @@ function classifyUnipodal(result) {
   return { score: last.score, label: last.label, unit: 's', testLabel: 'Apoio Unipodal' };
 }
 
-// results: { sitToStand, armCurl, chairSitReach, tug, unipodalStance } (números ou null/undefined)
-// age: número; sex: 'F' | 'M'
+// Apoio Unipodal com as duas pernas classificadas separadamente (mesmos pontos de corte
+// clínicos para cada uma). A pontuação usada no Índice composto é a da perna PIOR (menor
+// tempo) — não a média — porque um déficit assimétrico entre os lados é clinicamente
+// relevante e não deve ser mascarado. Também sinaliza possível assimetria quando a diferença
+// entre as pernas é grande (>=30% em relação à perna melhor).
+function classifyUnipodalPair(rightValue, leftValue) {
+  const right = { value: rightValue, ...classifyUnipodal(rightValue) };
+  const left = { value: leftValue, ...classifyUnipodal(leftValue) };
+  const worseSide = rightValue <= leftValue ? 'right' : 'left';
+  const worse = worseSide === 'right' ? right : left;
+  const better = worseSide === 'right' ? left : right;
+  const asymmetryPercent = better.value > 0 ? Math.round(((better.value - worse.value) / better.value) * 100) : 0;
+  const asymmetry = better.value > 0 && worse.value < better.value && asymmetryPercent >= 30;
+  return {
+    right,
+    left,
+    worseSide,
+    asymmetry,
+    asymmetryPercent,
+    score: worse.score,
+    label: worse.label,
+    unit: 's',
+    testLabel: 'Apoio Unipodal',
+  };
+}
+
+// results: { sitToStand, armCurl, chairSitReach, tug, unipodalStanceRight, unipodalStanceLeft }
+// (números ou null/undefined). age: número; sex: 'F' | 'M'
 function computeFunctionalAssessment(results, age, sex) {
   const perTest = {};
   let filledCount = 0;
   let sumScore = 0;
 
   for (const key of TEST_ORDER) {
+    if (key === 'unipodalStance') {
+      const rightRaw = results.unipodalStanceRight;
+      const leftRaw = results.unipodalStanceLeft;
+      const isEmpty = (v) => v === null || v === undefined || v === '';
+      if (isEmpty(rightRaw) || isEmpty(leftRaw)) {
+        perTest.unipodalStance = null;
+        continue;
+      }
+      filledCount += 1;
+      const pair = classifyUnipodalPair(Number(rightRaw), Number(leftRaw));
+      perTest.unipodalStance = pair;
+      sumScore += pair.score;
+      continue;
+    }
     const value = results[key];
     if (value === null || value === undefined || value === '') {
       perTest[key] = null;
@@ -148,9 +188,7 @@ function computeFunctionalAssessment(results, age, sex) {
     }
     const numValue = Number(value);
     filledCount += 1;
-    const classification = key === 'unipodalStance'
-      ? classifyUnipodal(numValue)
-      : classifyTableTest(key, numValue, age, sex);
+    const classification = classifyTableTest(key, numValue, age, sex);
     perTest[key] = { value: numValue, ...classification };
     sumScore += classification.score;
   }
@@ -173,5 +211,6 @@ window.SFT = {
   getPercentiles,
   classifyTableTest,
   classifyUnipodal,
+  classifyUnipodalPair,
   computeFunctionalAssessment,
 };

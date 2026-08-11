@@ -13,6 +13,23 @@ function defaultRestSeconds(it) {
   return it.restSeconds || 60;
 }
 
+// Legenda fixa da Escala de Borg CR-10 — sempre visível (não só ao passar o mouse), para o
+// aluno consultar durante a aula e entender o que cada nota significa.
+function borgLegendHtml() {
+  return `
+  <div class="mp-borg-legend">
+    <div class="mp-borg-legend-title">📋 Escala de Borg CR-10 — referência</div>
+    <div class="mp-borg-legend-grid">
+      ${BORG_LABELS.map((label, i) => `
+        <div class="mp-borg-legend-item">
+          <span class="mp-pill ${borgPillClass(i)}">${i}</span>
+          <span>${Utils.escapeHtml(label)}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
 function execRenderHtml() {
   if (!AppState.execDate) AppState.execDate = Utils.todayISO();
   const execDate = AppState.execDate;
@@ -91,6 +108,7 @@ function execRenderHtml() {
         <button type="button" class="mp-yesno-btn ${!isOverallMode ? 'mp-yesno-btn--active-yes' : ''}" data-borg-mode-btn="perExercise">Por exercício</button>
         <button type="button" class="mp-yesno-btn ${isOverallMode ? 'mp-yesno-btn--active-yes' : ''}" data-borg-mode-btn="overall">Treino geral</button>
       </div>
+      ${borgLegendHtml()}
     </div>
     <div class="mp-sub" style="margin-top:10px;">${planItens.length ? 'Marque cada exercício conforme for aplicando — os valores já vêm preenchidos com o alvo planejado, é só ajustar.' : 'Nenhum plano criado para esta data. Vá em "Planejar Aula" para montar a sequência com antecedência, ou registre um exercício avulso abaixo.'}</div>
     ${pendentes.length ? checklistCards : (planItens.length ? '<div class="mp-sub" style="margin:0;">Todos os exercícios planejados já foram concluídos hoje. 🎉</div>' : '')}

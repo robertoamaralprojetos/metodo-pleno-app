@@ -7,7 +7,15 @@ const TEST_FIELDS = [
   { key: 'armCurl', label: 'Flexão de Antebraço', unit: 'repetições / 30s' },
   { key: 'chairSitReach', label: 'Sentar e Alcançar o Pé na Cadeira', unit: 'cm (pode ser negativo)' },
   { key: 'tug', label: 'TUG — Timed Up and Go', unit: 'segundos (menor é melhor)' },
-  { key: 'unipodalStance', label: 'Apoio Unipodal', unit: 'segundos' },
+  { key: 'unipodalStance', label: 'Apoio Unipodal', unit: 'segundos' }, // representa o par de pernas — ver CHART_FIELDS
+];
+
+// Para gráficos de evolução (e o relatório de impressão): Apoio Unipodal vira 2 séries, uma
+// por perna, já que os resultados não guardam mais um valor único para esse teste.
+const CHART_FIELDS = [
+  ...TEST_FIELDS.filter((f) => f.key !== 'unipodalStance'),
+  { key: 'unipodalStanceRight', label: 'Apoio Unipodal — Perna Direita', unit: 'segundos' },
+  { key: 'unipodalStanceLeft', label: 'Apoio Unipodal — Perna Esquerda', unit: 'segundos' },
 ];
 
 function classificacaoIndice(idx) {
@@ -39,6 +47,31 @@ function resultRowHtml(field, testResult) {
     </tr>`;
 }
 
+// Duas linhas (Direita/Esquerda) para o Apoio Unipodal, cada uma classificada com os mesmos
+// pontos de corte clínicos. A perna que conta para o Índice (a pior — menor tempo) fica
+// marcada.
+function unipodalRowsHtml(pair) {
+  if (!pair) {
+    return `
+      <tr><td>Apoio Unipodal — Perna Direita</td><td colspan="5" style="color:var(--texto-suave);">— preencha o valor —</td></tr>
+      <tr><td>Apoio Unipodal — Perna Esquerda</td><td colspan="5" style="color:var(--texto-suave);">— preencha o valor —</td></tr>`;
+  }
+  const sideRow = (label, side, isWorse) => {
+    const pillClass = side.score >= 3 ? 'mp-pill-leve' : side.score === 2 ? 'mp-pill-moderado' : 'mp-pill-alto';
+    return `
+      <tr>
+        <td>Apoio Unipodal — ${label}${isWorse ? ' <span style="font-size:11px;color:var(--texto-suave);">(usada no índice)</span>' : ''}</td>
+        <td>${side.value}</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>${Utils.escapeHtml(side.label)}</td>
+        <td><span class="mp-pill ${pillClass}">${side.score}</span></td>
+      </tr>`;
+  };
+  return sideRow('Perna Direita', pair.right, pair.worseSide === 'right') + sideRow('Perna Esquerda', pair.left, pair.worseSide === 'left');
+}
+
 function evalRenderHtml() {
   const student = currentStudent();
   const today = Utils.todayISO();
@@ -56,7 +89,7 @@ function evalRenderHtml() {
       </tr>`;
   }).join('');
 
-  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
+  const availableTestCharts = CHART_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
   const reassessment = list.length ? Utils.reassessmentStatus(list[0].date) : null;
 
   return `
@@ -81,14 +114,26 @@ function evalRenderHtml() {
           <option value="M" ${student?.sex === 'M' ? 'selected' : ''}>Masculino</option>
         </select>
       </div>
-      <div class="mp-form-row mp-row5">
-        ${TEST_FIELDS.map((f) => `
+      <div class="mp-form-row mp-row4">
+        ${TEST_FIELDS.filter((f) => f.key !== 'unipodalStance').map((f) => `
           <div class="mp-field">
             <label>${Utils.escapeHtml(f.label)}</label>
             <input type="number" step="0.1" id="mp-a-${f.key}">
             <div class="mp-tag-input-hint">${f.unit}</div>
           </div>
         `).join('')}
+      </div>
+      <div class="mp-form-row mp-row2">
+        <div class="mp-field">
+          <label>Apoio Unipodal — Perna Direita</label>
+          <input type="number" step="0.1" id="mp-a-unipodal-right">
+          <div class="mp-tag-input-hint">segundos</div>
+        </div>
+        <div class="mp-field">
+          <label>Apoio Unipodal — Perna Esquerda</label>
+          <input type="number" step="0.1" id="mp-a-unipodal-left">
+          <div class="mp-tag-input-hint">segundos</div>
+        </div>
       </div>
       <div id="mp-af-preview" style="margin-top:10px;"></div>
       <div class="mp-form-actions">
@@ -135,10 +180,14 @@ function evalRenderHtml() {
 
 function getFormResults(container) {
   const results = {};
-  TEST_FIELDS.forEach((f) => {
+  TEST_FIELDS.filter((f) => f.key !== 'unipodalStance').forEach((f) => {
     const v = container.querySelector(`#mp-a-${f.key}`).value;
     results[f.key] = v === '' ? null : Number(v);
   });
+  const right = container.querySelector('#mp-a-unipodal-right').value;
+  const left = container.querySelector('#mp-a-unipodal-left').value;
+  results.unipodalStanceRight = right === '' ? null : Number(right);
+  results.unipodalStanceLeft = left === '' ? null : Number(left);
   return results;
 }
 
@@ -148,8 +197,10 @@ function recomputePreview(container) {
   const results = getFormResults(container);
   const assessment = SFT.computeFunctionalAssessment(results, age, sex);
   const previewEl = container.querySelector('#mp-af-preview');
-  const rowsHtml = TEST_FIELDS.map((f) => resultRowHtml(f, assessment.perTest[f.key])).join('');
+  const pair = assessment.perTest.unipodalStance;
+  const rowsHtml = TEST_FIELDS.filter((f) => f.key !== 'unipodalStance').map((f) => resultRowHtml(f, assessment.perTest[f.key])).join('') + unipodalRowsHtml(pair);
   previewEl.innerHTML = `
+    ${pair && pair.asymmetry ? `<div style="margin-bottom:8px;"><span class="mp-pill mp-pill-moderado">⚠ Possível assimetria entre os lados — diferença de ~${pair.asymmetryPercent}% em relação à perna melhor.</span></div>` : ''}
     <div class="mp-table-scroll">
       <table class="mp-table">
         <thead><tr><th>Teste</th><th>Resultado</th><th>P25</th><th>P50</th><th>P75</th><th>Classificação</th><th>Pontos</th></tr></thead>
@@ -182,7 +233,7 @@ function drawIndiceChart(container) {
 
 function drawTestCharts(container) {
   const list = AppState.data.evaluations;
-  TEST_FIELDS.forEach((f) => {
+  CHART_FIELDS.forEach((f) => {
     const target = container.querySelector(`#mp-chart-test-${f.key}`);
     if (!target) return;
     const points = testPoints(list, f.key);
@@ -201,7 +252,7 @@ function afBuildAndPrintReport(printArea, student, list) {
     })
     .filter((p) => p.value !== null);
 
-  const availableTestCharts = TEST_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
+  const availableTestCharts = CHART_FIELDS.filter((f) => testPoints(list, f.key).length >= 1);
 
   if (!indicePoints.length && !availableTestCharts.length) {
     Utils.toast('Registre pelo menos 1 avaliação completa para gerar o relatório.', 'error');
@@ -249,9 +300,9 @@ function evalBindEvents(container) {
     const age = Number(container.querySelector('#mp-a-idade').value) || 0;
     const sex = container.querySelector('#mp-a-sexo').value;
     const results = getFormResults(container);
-    const filledCount = Object.values(results).filter((v) => v !== null).length;
-    if (filledCount < TEST_FIELDS.length) {
-      Utils.toast('Preencha os 5 testes para salvar a avaliação.', 'error');
+    const assessment = SFT.computeFunctionalAssessment(results, age, sex);
+    if (!assessment.complete) {
+      Utils.toast('Preencha os 5 testes (incluindo as duas pernas do Apoio Unipodal) para salvar a avaliação.', 'error');
       return;
     }
     const record = {
