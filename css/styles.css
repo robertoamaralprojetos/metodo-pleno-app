@@ -278,6 +278,14 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 }
 .mp-warning-banner + .mp-warning-banner{ margin-top:8px; }
 
+/* Aviso dentro de um card de conteúdo (fundo claro) — ex: "última aula do pacote" em
+   Registro de Treino. Mesma paleta dos mp-pill-*, só que em formato de faixa. */
+.mp-inline-alert{
+  padding:10px 14px; border-radius:10px; font-size:13px; font-weight:700; border:1px solid transparent;
+}
+.mp-inline-alert-alto{ background:var(--alerta-fundo); color:var(--alerta); border-color:rgba(162,78,51,.3); }
+.mp-inline-alert-moderado{ background:var(--dourado-claro); color:var(--dourado-escuro); border-color:rgba(143,112,31,.3); }
+
 .mp-toast{
   position:fixed; right:22px; bottom:22px; z-index:9999;
   font-family:'Manrope',sans-serif; font-weight:700; font-size:13.5px;
