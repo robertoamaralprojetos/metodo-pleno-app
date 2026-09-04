@@ -1,5 +1,5 @@
-// Aba: Registro de Treino — checklist do plano do dia (com Borg CR-10 por exercício)
-// + registro de exercício avulso fora do plano + histórico completo de sessões.
+// Aba: Registro de Treino — checklist do plano do dia (com Borg CR-10 por exercício,
+// força ou aeróbico) + registro de exercício avulso fora do plano + histórico completo.
 
 const BORG_LABELS = ['Repouso', 'Muito, muito leve', 'Fácil', 'Moderado', 'Um pouco difícil', 'Difícil', 'Difícil +', 'Muito difícil', 'Muito difícil +', 'Muito, muito difícil', 'Esforço máximo'];
 
@@ -30,6 +30,30 @@ function borgLegendHtml() {
   </div>`;
 }
 
+// Aviso de "última aula do pacote": conta os dias distintos com sessão dentro do ciclo de
+// cobrança atual (sem contar hoje) — se hoje seria exatamente a aula nº "aulas contratadas",
+// ou já passou disso, avisa. Evita dar mais aulas do que o combinado sem perceber.
+function lastClassStatus(student, payments, sessions, execDate) {
+  if (!student) return null;
+  const contratadas = Number(student.monthlySessionsCount) || 0;
+  if (!contratadas) return null;
+  const cycles = PaymentLogic.buildCycles(student, payments);
+  const cycle = cycles.length ? cycles[cycles.length - 1] : null;
+  if (!cycle) return null;
+  if (execDate < cycle.start || execDate > cycle.end) return null;
+  const datesExcludingToday = new Set(
+    sessions.filter((s) => s.date >= cycle.start && s.date <= cycle.end && s.date !== execDate).map((s) => s.date)
+  );
+  const numeroDestaAula = datesExcludingToday.size + 1;
+  if (numeroDestaAula === contratadas) {
+    return { level: 'alto', text: `⚠ Esta é a última aula contratada neste ciclo (aula ${numeroDestaAula} de ${contratadas}). Verifique se é hora de registrar um novo pagamento.` };
+  }
+  if (numeroDestaAula > contratadas) {
+    return { level: 'alto', text: `⚠ O aluno já completou as ${contratadas} aulas contratadas neste ciclo (esta seria a aula ${numeroDestaAula}). Considere registrar um novo pagamento antes de continuar.` };
+  }
+  return null;
+}
+
 function execRenderHtml() {
   if (!AppState.execDate) AppState.execDate = Utils.todayISO();
   const execDate = AppState.execDate;
@@ -37,16 +61,20 @@ function execRenderHtml() {
   const datalist = '<datalist id="mp-ex-list">' + ex.map((e) => `<option value="${Utils.escapeHtml(e)}">`).join('') + '</datalist>';
   const sorted = [...AppState.data.sessions].sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
 
-  const rows = sorted.map((s) => `
+  const rows = sorted.map((s) => {
+    const detailCells = s.type === 'aerobico'
+      ? `<td>—</td><td>${Utils.escapeHtml(formatAerobicSummary(s))}</td>`
+      : `<td>${s.series}×${s.reps}</td><td>${s.load} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}</td>`;
+    return `
     <tr>
       <td>${Utils.formatDateBR(s.date)}</td>
-      <td>${Utils.escapeHtml(s.exerciseName)}</td>
-      <td>${s.series}×${s.reps}</td>
-      <td>${s.load} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}</td>
+      <td>${Utils.escapeHtml(s.exerciseName)}${s.type === 'aerobico' ? ' <span class="mp-pill mp-pill-moderado" style="margin-left:4px;">aeróbico</span>' : ''}</td>
+      ${detailCells}
       <td>${s.borg != null ? `<span class="mp-pill ${borgPillClass(s.borg)}">${s.borg} · ${BORG_LABELS[s.borg]}</span>` : '<span style="color:var(--texto-suave);">— (treino geral)</span>'}</td>
       <td style="max-width:180px;color:var(--texto-suave);font-size:12.5px;">${Utils.escapeHtml(s.notes || '')}</td>
       <td><button class="mp-btn-danger" data-del-session="${s.id}" type="button">Excluir</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   const plan = getPlanByDate(execDate);
   const planItens = plan ? plan.items : [];
@@ -57,13 +85,25 @@ function execRenderHtml() {
   const borgMode = dailyMeta?.borgMode || 'perExercise';
   const isOverallMode = borgMode === 'overall';
 
-  const checklistCards = pendentes.map((it) => `
-    <div class="mp-check-card" id="mp-check-${it.id}">
-      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}<span class="mp-check-alvo">alvo: ${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}</span></div>
-      <div class="mp-check-row">
+  const checklistCards = pendentes.map((it) => {
+    const isAerobico = it.type === 'aerobico';
+    const aerobicFields = isAerobico ? aerobicFieldsFor(it.aerobicType) : null;
+    const detailInputs = isAerobico ? `
+        <div class="mp-field"><label>Tempo (min)</label><input type="number" min="0" step="1" id="mp-real-duration-${it.id}" value="${it.durationMinutes ?? ''}"></div>
+        ${aerobicFields.speed ? `<div class="mp-field"><label>Velocidade (km/h)</label><input type="number" min="0" step="0.1" id="mp-real-speed-${it.id}" value="${it.speed ?? ''}"></div>` : ''}
+        ${aerobicFields.incline ? `<div class="mp-field"><label>Inclinação (%)</label><input type="number" min="0" step="0.5" id="mp-real-incline-${it.id}" value="${it.incline ?? ''}"></div>` : ''}
+        ${aerobicFields.load ? `<div class="mp-field"><label>Carga/Resistência</label><input type="number" min="0" step="0.5" id="mp-real-load-${it.id}" value="${it.load ?? ''}"></div>` : ''}
+      ` : `
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
         <div class="mp-field"><label>Carga</label><input type="number" min="0" step="0.5" id="mp-real-carga-${it.id}" value="${it.load}"></div>
+      `;
+    const alvoText = isAerobico ? formatAerobicSummary(it) : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}`;
+    return `
+    <div class="mp-check-card" id="mp-check-${it.id}">
+      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}${isAerobico ? ' <span class="mp-pill mp-pill-moderado">aeróbico</span>' : ''}<span class="mp-check-alvo">alvo: ${alvoText}</span></div>
+      <div class="mp-check-row">
+        ${detailInputs}
         ${isOverallMode ? '' : `
         <div class="mp-field">
           <label>Borg <span id="mp-real-borg-num-${it.id}">5</span></label>
@@ -74,23 +114,27 @@ function execRenderHtml() {
         <label>Observações (opcional)</label>
         <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc."></textarea>
       </div>
+      ${isAerobico ? '' : `
       <div class="mp-timer" data-item-id="${it.id}">
         <div class="mp-timer-display" id="mp-timer-display-${it.id}">${Utils.formatMMSS(defaultRestSeconds(it))}</div>
         <div class="mp-timer-controls">
           <button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" data-timer-start="${it.id}">▶ Iniciar descanso</button>
           <button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" data-timer-reset="${it.id}">↺ Resetar</button>
         </div>
-      </div>
+      </div>`}
       <div class="mp-form-actions">
         <button type="button" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;" data-concluir-item="${it.id}">✓ Concluir exercício</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const concluidosList = concluidos.length
     ? `<div class="mp-sub" style="margin-top:16px;">Concluídos hoje: ${concluidos.map((it) => Utils.escapeHtml(it.exerciseName)).join(', ')}</div>`
     : '';
 
   const student = currentStudent();
+  const lastClass = lastClassStatus(student, AppState.data.payments, AppState.data.sessions, execDate);
+  const elasticColors = elasticColorList();
 
   return `
   <div class="mp-card">
@@ -98,6 +142,7 @@ function execRenderHtml() {
       <h3 style="margin-bottom:0;">Executar plano da aula</h3>
       <div class="mp-field" style="margin:0;"><input type="date" id="mp-exec-date" value="${execDate}"></div>
     </div>
+    ${lastClass ? `<div class="mp-inline-alert mp-inline-alert-${lastClass.level}" style="margin-top:12px;">${Utils.escapeHtml(lastClass.text)}</div>` : ''}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
       <span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span>
       <span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span>
@@ -136,19 +181,11 @@ function execRenderHtml() {
     <h3>Registrar exercício avulso (fora do plano)</h3>
     <div class="mp-sub">Use para lançar algo que não estava no plano, ou se você prefere registrar tudo manualmente.</div>
     <form id="mp-session-form">
-      <div class="mp-form-row">
+      <div class="mp-form-row mp-row2">
         <div class="mp-field"><label>Data</label><input type="date" id="mp-f-data" value="${execDate}" required></div>
-        <div class="mp-field"><label>Exercício</label><input type="text" id="mp-f-exercicio" list="mp-ex-list" placeholder="Ex: Agachamento na cadeira" required></div>
-        <div class="mp-field"><label>Séries</label><input type="number" id="mp-f-series" min="1" step="1" value="3" required></div>
-        <div class="mp-field"><label>Repetições</label><input type="number" id="mp-f-reps" min="1" step="1" value="12" required></div>
       </div>
+      ${exerciseItemFormHtml('mp-f', null, elasticColors, 'mp-ex-list')}
       ${datalist}
-      <div class="mp-form-row mp-row2">
-        <div class="mp-field"><label>Carga / Resistência</label><input type="number" id="mp-f-carga" min="0" step="0.5" value="0" required></div>
-      </div>
-      <div class="mp-form-row mp-row2">
-        ${unitFieldHtml('mp-f', '', '', elasticColorList())}
-      </div>
       ${isOverallMode ? `<div class="mp-sub" style="margin-top:0;">Hoje está em modo "Treino geral" — a nota de Borg deste exercício vai ser representada pela nota única lá em cima.</div>` : `
       <div class="mp-field" style="margin-bottom:12px;">
         <label>Percepção de Esforço — Escala de Borg (CR-10)</label>
@@ -256,27 +293,56 @@ function execBindEvents(container) {
       const plan = getPlanByDate(AppState.execDate);
       const item = plan ? plan.items.find((it) => it.id === itemId) : null;
       if (!item) return;
-      const realSeries = parseInt(container.querySelector('#mp-real-series-' + itemId).value, 10) || 0;
-      const realReps = parseInt(container.querySelector('#mp-real-reps-' + itemId).value, 10) || 0;
-      const realCarga = parseFloat(container.querySelector('#mp-real-carga-' + itemId).value) || 0;
       const borgInputEl = container.querySelector('#mp-real-borg-' + itemId);
       const realBorg = borgInputEl ? parseInt(borgInputEl.value, 10) : null;
       const realObs = container.querySelector('#mp-real-obs-' + itemId)?.value.trim() || '';
-      const session = {
-        id: dbUuid(),
-        ts: Date.now(),
-        studentId: AppState.currentId,
-        date: AppState.execDate,
-        exerciseName: item.exerciseName,
-        series: realSeries,
-        reps: realReps,
-        load: realCarga,
-        unit: item.unit,
-        unitDetail: item.unitDetail,
-        borg: realBorg,
-        notes: realObs,
-        planItemId: item.id,
-      };
+
+      let session;
+      if (item.type === 'aerobico') {
+        const fields = aerobicFieldsFor(item.aerobicType);
+        const durationMinutes = Number(container.querySelector('#mp-real-duration-' + itemId)?.value) || 0;
+        const speed = fields.speed ? (Number(container.querySelector('#mp-real-speed-' + itemId)?.value) || 0) : null;
+        const incline = fields.incline ? (Number(container.querySelector('#mp-real-incline-' + itemId)?.value) || 0) : null;
+        const load = fields.load ? (Number(container.querySelector('#mp-real-load-' + itemId)?.value) || 0) : null;
+        session = {
+          id: dbUuid(),
+          ts: Date.now(),
+          studentId: AppState.currentId,
+          date: AppState.execDate,
+          type: 'aerobico',
+          exerciseName: item.exerciseName,
+          aerobicType: item.aerobicType,
+          aerobicTypeCustom: item.aerobicTypeCustom,
+          durationMinutes,
+          speed,
+          incline,
+          load,
+          borg: realBorg,
+          notes: realObs,
+          planItemId: item.id,
+        };
+      } else {
+        const realSeries = parseInt(container.querySelector('#mp-real-series-' + itemId).value, 10) || 0;
+        const realReps = parseInt(container.querySelector('#mp-real-reps-' + itemId).value, 10) || 0;
+        const realCarga = parseFloat(container.querySelector('#mp-real-carga-' + itemId).value) || 0;
+        session = {
+          id: dbUuid(),
+          ts: Date.now(),
+          studentId: AppState.currentId,
+          date: AppState.execDate,
+          type: 'forca',
+          exerciseName: item.exerciseName,
+          series: realSeries,
+          reps: realReps,
+          load: realCarga,
+          unit: item.unit,
+          unitDetail: item.unitDetail,
+          borg: realBorg,
+          notes: realObs,
+          planItemId: item.id,
+        };
+      }
+
       item.completed = true;
       item.sessionId = session.id;
       RestTimer.discard(itemId);
@@ -289,7 +355,7 @@ function execBindEvents(container) {
     });
   });
 
-  bindUnitFieldEvents(container, 'mp-f');
+  bindExerciseItemFormEvents(container, 'mp-f');
 
   const form = container.querySelector('#mp-session-form');
   if (form) {
@@ -306,20 +372,14 @@ function execBindEvents(container) {
     form.addEventListener('submit', (e) => e.preventDefault());
     const sessionBtn = container.querySelector('#mp-session-submit');
     if (sessionBtn) sessionBtn.addEventListener('click', async () => {
-      const exerciseName = container.querySelector('#mp-f-exercicio').value.trim();
-      if (!exerciseName) { Utils.toast('Preencha o nome do exercício.', 'error'); return; }
-      const { unit, unitDetail } = readUnitFieldValues(container, 'mp-f');
+      const result = readExerciseItemForm(container, 'mp-f');
+      if (result.error) { Utils.toast(result.error, 'error'); return; }
       const session = {
         id: dbUuid(),
         ts: Date.now(),
         studentId: AppState.currentId,
         date: container.querySelector('#mp-f-data').value || AppState.execDate,
-        exerciseName,
-        series: parseInt(container.querySelector('#mp-f-series').value, 10) || 0,
-        reps: parseInt(container.querySelector('#mp-f-reps').value, 10) || 0,
-        load: parseFloat(container.querySelector('#mp-f-carga').value) || 0,
-        unit,
-        unitDetail,
+        ...result,
         borg: (() => { const el = container.querySelector('#mp-f-borg'); return el ? parseInt(el.value, 10) : null; })(),
         notes: container.querySelector('#mp-f-obs').value.trim(),
         planItemId: null,

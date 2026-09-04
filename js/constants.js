@@ -10,6 +10,10 @@ function stageLabel(value) {
   return STAGE_OPTIONS.find((s) => s.value === value)?.label || 'Não definido';
 }
 
+// Fichas de treino: rótulos fixos (A a E) — modelos reutilizáveis de exercícios,
+// independentes de data, editáveis a qualquer momento (Planejar Aula).
+const FICHA_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
+
 const WEEKDAYS = [
   { key: 'seg', label: 'Segunda' },
   { key: 'ter', label: 'Terça' },
@@ -111,6 +115,102 @@ function readUnitFieldValues(container, idPrefix) {
   return { unit, unitDetail };
 }
 
+// ---------- Treino aeróbico (Planejar Aula + Registro de Treino) ----------
+const AEROBIC_TYPE_OPTIONS = [
+  { value: 'esteira', label: 'Esteira' },
+  { value: 'bicicletaErgometrica', label: 'Bicicleta Ergométrica' },
+  { value: 'bicicletaSpinning', label: 'Bicicleta de Spinning' },
+  { value: 'eliptico', label: 'Elíptico' },
+  { value: 'outros', label: 'Outros' },
+];
+
+function aerobicTypeLabel(type, custom) {
+  if (!type) return 'Treino aeróbico';
+  if (type === 'outros') return custom || 'Outros';
+  return AEROBIC_TYPE_OPTIONS.find((o) => o.value === type)?.label || type;
+}
+
+// Quais campos de intensidade fazem sentido por tipo: esteira usa velocidade/inclinação;
+// bicicletas/elíptico/outros usam carga (resistência).
+function aerobicFieldsFor(type) {
+  return { speed: type === 'esteira', incline: type === 'esteira', load: type !== 'esteira' && !!type };
+}
+
+// Resumo textual (usado nas tabelas — plano, checklist, histórico, impressão) já que o
+// treino aeróbico não tem "séries×rep"/"carga" no mesmo sentido do treino de força.
+function formatAerobicSummary(item) {
+  const parts = [];
+  if (item.durationMinutes != null && item.durationMinutes !== '') parts.push(`${item.durationMinutes} min`);
+  if (item.speed != null && item.speed !== '') parts.push(`${item.speed} km/h`);
+  if (item.incline != null && item.incline !== '') parts.push(`${item.incline}% inclin.`);
+  if (item.load != null && item.load !== '') parts.push(`carga ${item.load}`);
+  return parts.join(' · ') || '—';
+}
+
+// Bloco reutilizável de campos de treino aeróbico (Planejar Aula, checklist do dia e
+// exercício avulso), com campos condicionais conforme o tipo escolhido.
+function aerobicFieldHtml(idPrefix, values) {
+  values = values || {};
+  const type = values.aerobicType || '';
+  const fields = aerobicFieldsFor(type);
+  return `
+    <div class="mp-field">
+      <label>Tipo de treino aeróbico</label>
+      <select id="${idPrefix}-aerobic-type">
+        <option value="">Selecione</option>
+        ${AEROBIC_TYPE_OPTIONS.map((o) => `<option value="${o.value}" ${type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-custom-wrap" style="${type === 'outros' ? '' : 'display:none;'}">
+      <label>Qual?</label>
+      <input type="text" id="${idPrefix}-aerobic-custom" value="${Utils.escapeHtml(values.aerobicTypeCustom || '')}" placeholder="Ex: Remo, escada...">
+    </div>
+    <div class="mp-field">
+      <label>Tempo (minutos)</label>
+      <input type="number" min="0" step="1" id="${idPrefix}-aerobic-duration" value="${values.durationMinutes ?? ''}">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-speed-wrap" style="${fields.speed ? '' : 'display:none;'}">
+      <label>Velocidade (km/h)</label>
+      <input type="number" min="0" step="0.1" id="${idPrefix}-aerobic-speed" value="${values.speed ?? ''}">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-incline-wrap" style="${fields.incline ? '' : 'display:none;'}">
+      <label>Inclinação (%)</label>
+      <input type="number" min="0" step="0.5" id="${idPrefix}-aerobic-incline" value="${values.incline ?? ''}">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-load-wrap" style="${fields.load ? '' : 'display:none;'}">
+      <label>Carga / Resistência</label>
+      <input type="number" min="0" step="0.5" id="${idPrefix}-aerobic-load" value="${values.load ?? ''}">
+    </div>
+  `;
+}
+
+function bindAerobicFieldEvents(container, idPrefix) {
+  const select = container.querySelector(`#${idPrefix}-aerobic-type`);
+  if (!select) return;
+  const customWrap = container.querySelector(`#${idPrefix}-aerobic-custom-wrap`);
+  const speedWrap = container.querySelector(`#${idPrefix}-aerobic-speed-wrap`);
+  const inclineWrap = container.querySelector(`#${idPrefix}-aerobic-incline-wrap`);
+  const loadWrap = container.querySelector(`#${idPrefix}-aerobic-load-wrap`);
+  select.addEventListener('change', () => {
+    const fields = aerobicFieldsFor(select.value);
+    if (customWrap) customWrap.style.display = select.value === 'outros' ? '' : 'none';
+    if (speedWrap) speedWrap.style.display = fields.speed ? '' : 'none';
+    if (inclineWrap) inclineWrap.style.display = fields.incline ? '' : 'none';
+    if (loadWrap) loadWrap.style.display = fields.load ? '' : 'none';
+  });
+}
+
+function readAerobicFieldValues(container, idPrefix) {
+  const aerobicType = container.querySelector(`#${idPrefix}-aerobic-type`).value;
+  const aerobicTypeCustom = aerobicType === 'outros' ? (container.querySelector(`#${idPrefix}-aerobic-custom`)?.value.trim() || '') : '';
+  const durationMinutes = Number(container.querySelector(`#${idPrefix}-aerobic-duration`).value) || 0;
+  const fields = aerobicFieldsFor(aerobicType);
+  const speed = fields.speed ? (Number(container.querySelector(`#${idPrefix}-aerobic-speed`)?.value) || 0) : null;
+  const incline = fields.incline ? (Number(container.querySelector(`#${idPrefix}-aerobic-incline`)?.value) || 0) : null;
+  const load = fields.load ? (Number(container.querySelector(`#${idPrefix}-aerobic-load`)?.value) || 0) : null;
+  return { aerobicType, aerobicTypeCustom, durationMinutes, speed, incline, load };
+}
+
 // Idosos (>=60): Classificação de Lipschitz — abaixo de 22 baixo peso, 22 a 27 eutrófico, acima de 27 sobrepeso.
 // Adultos (<60): tabela padrão da OMS — <18,5 baixo peso, 18,5–24,9 normal, 25–29,9 sobrepeso, 30+ obesidade.
 function classifyImc(imc, age) {
@@ -141,6 +241,7 @@ const CIRCUMFERENCE_FIELDS = [
 
 window.STAGE_OPTIONS = STAGE_OPTIONS;
 window.stageLabel = stageLabel;
+window.FICHA_OPTIONS = FICHA_OPTIONS;
 window.WEEKDAYS = WEEKDAYS;
 window.ANAMNESE_QUESTIONS = ANAMNESE_QUESTIONS;
 window.ACTIVITY_TYPE_OPTIONS = ACTIVITY_TYPE_OPTIONS;
@@ -148,5 +249,15 @@ window.activityTypeLabel = activityTypeLabel;
 window.UNIT_OPTIONS = UNIT_OPTIONS;
 window.unitOptionLabel = unitOptionLabel;
 window.formatUnitLabel = formatUnitLabel;
+window.unitFieldHtml = unitFieldHtml;
+window.bindUnitFieldEvents = bindUnitFieldEvents;
+window.readUnitFieldValues = readUnitFieldValues;
 window.classifyImc = classifyImc;
 window.CIRCUMFERENCE_FIELDS = CIRCUMFERENCE_FIELDS;
+window.AEROBIC_TYPE_OPTIONS = AEROBIC_TYPE_OPTIONS;
+window.aerobicTypeLabel = aerobicTypeLabel;
+window.aerobicFieldsFor = aerobicFieldsFor;
+window.formatAerobicSummary = formatAerobicSummary;
+window.aerobicFieldHtml = aerobicFieldHtml;
+window.bindAerobicFieldEvents = bindAerobicFieldEvents;
+window.readAerobicFieldValues = readAerobicFieldValues;

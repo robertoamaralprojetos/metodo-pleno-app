@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.6.0';
+const APP_VERSION = 'v1.8.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
@@ -195,8 +195,24 @@ function renderTabContent() {
 function exportSessionsCsv() {
   const sessions = AppState.data.sessions;
   if (!sessions.length) { Utils.toast('Nenhum registro para exportar ainda.', 'error'); return; }
-  const header = 'Data;Exercicio;Series;Repeticoes;Carga;Unidade;Borg;Observacoes\n';
-  const lines = sessions.map((s) => [s.date, s.exerciseName, s.series, s.reps, s.load, s.unit, s.borg, (s.notes || '').replace(/;/g, ',')].join(';'));
+  const header = 'Data;Tipo;Exercicio;Series;Repeticoes;Carga;Unidade;TempoMin;Velocidade;Inclinacao;Borg;Observacoes\n';
+  const lines = sessions.map((s) => {
+    const isAerobico = s.type === 'aerobico';
+    return [
+      s.date,
+      isAerobico ? 'Aerobico' : 'Forca',
+      s.exerciseName,
+      isAerobico ? '' : s.series,
+      isAerobico ? '' : s.reps,
+      isAerobico ? (s.load ?? '') : s.load,
+      isAerobico ? '' : s.unit,
+      isAerobico ? (s.durationMinutes ?? '') : '',
+      isAerobico ? (s.speed ?? '') : '',
+      isAerobico ? (s.incline ?? '') : '',
+      s.borg,
+      (s.notes || '').replace(/;/g, ','),
+    ].join(';');
+  });
   const csv = header + lines.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

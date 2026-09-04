@@ -2,7 +2,7 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
-const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [] };
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [] };
 
 const AppState = {
   students: [],
@@ -16,10 +16,12 @@ const AppState = {
   settings: null,
   planEditItemId: null,
   pinUnlocked: true,
+  planFicha: 'A',
+  planFichaEditItemId: null,
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
@@ -27,8 +29,9 @@ async function loadStudentData(id) {
     DB.getAllByIndex(DB.STORES.cancellations, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.physicalEvaluations, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.dailySessionMeta, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.workoutTemplates, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates };
 }
 
 async function stateInit() {
@@ -48,6 +51,8 @@ async function switchStudent(id) {
   AppState.planDate = null;
   AppState.execDate = null;
   AppState.planEditItemId = null;
+  AppState.planFicha = 'A';
+  AppState.planFichaEditItemId = null;
   AppState.data = id ? await loadStudentData(id) : { ...EMPTY_STUDENT_DATA };
   render();
 }
@@ -112,6 +117,28 @@ async function persistDailyMeta(meta) {
   await DB.put(DB.STORES.dailySessionMeta, meta);
 }
 
+function templateId(studentId, ficha) { return `${studentId}__${ficha}`; }
+
+function getTemplate(ficha) {
+  return AppState.data.workoutTemplates.find((t) => t.ficha === ficha) || null;
+}
+
+// Retorna (criando em memória se preciso) a Ficha de treino do aluno atual. Não persiste
+// sozinha — quem chamar deve salvar via persistTemplate() após ajustar os itens.
+function ensureTemplate(ficha) {
+  let template = getTemplate(ficha);
+  if (!template) {
+    template = { id: templateId(AppState.currentId, ficha), studentId: AppState.currentId, ficha, items: [], updatedAt: new Date().toISOString() };
+    AppState.data.workoutTemplates.push(template);
+  }
+  return template;
+}
+
+async function persistTemplate(template) {
+  template.updatedAt = new Date().toISOString();
+  await DB.put(DB.STORES.workoutTemplates, template);
+}
+
 // Borg efetivo de um dia: nota única (modo "treino geral") ou média dos Borgs individuais
 // daquele dia (modo "por exercício" — inclui dias antigos, sem ficha registrada).
 function computeDailyBorg(sessions, dailyMeta, date) {
@@ -129,11 +156,12 @@ function exerciseList() {
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
-// Cores de elástico já usadas por este aluno (sessões + itens de plano), para autocomplete.
+// Cores de elástico já usadas por este aluno (sessões + itens de plano + fichas), para autocomplete.
 function elasticColorList() {
   const set = new Set();
   AppState.data.sessions.forEach((s) => { if (s.unit === 'elastico' && s.unitDetail) set.add(s.unitDetail); });
   AppState.data.plans.forEach((p) => p.items.forEach((it) => { if (it.unit === 'elastico' && it.unitDetail) set.add(it.unitDetail); }));
+  AppState.data.workoutTemplates.forEach((t) => t.items.forEach((it) => { if (it.unit === 'elastico' && it.unitDetail) set.add(it.unitDetail); }));
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
@@ -153,3 +181,7 @@ window.getDailyMeta = getDailyMeta;
 window.ensureDailyMeta = ensureDailyMeta;
 window.persistDailyMeta = persistDailyMeta;
 window.computeDailyBorg = computeDailyBorg;
+window.templateId = templateId;
+window.getTemplate = getTemplate;
+window.ensureTemplate = ensureTemplate;
+window.persistTemplate = persistTemplate;

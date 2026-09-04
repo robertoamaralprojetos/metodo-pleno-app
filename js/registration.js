@@ -101,16 +101,9 @@ function regRenderHtml() {
 
   <div class="mp-card" style="margin-top:20px;">
     <h3>Saúde e treino</h3>
-    <div class="mp-form-row mp-row2">
-      <div class="mp-field"><label>Estágio de treino</label>
-        <select id="r-stage">
-          <option value="">Não definido</option>
-          ${STAGE_OPTIONS.map((s) => `<option value="${s.value}" ${student.stage === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
-        </select>
-      </div>
-      <div class="mp-field"><label>Data do atestado médico</label><input type="date" id="r-cert" value="${student.medicalCertificateDate || ''}"></div>
-    </div>
-    <div id="r-cert-status" style="margin-bottom:14px;">${certStatus ? `<span class="mp-pill mp-pill-${certStatus.level}">${Utils.escapeHtml(certStatus.text)}</span>` : ''}</div>
+    <div class="mp-sub" style="margin-top:10px;">O estágio de treino (adaptação/intermediário/avançado) agora é editado na aba "Planejar Aula", junto com a ficha do dia.</div>
+    <div class="mp-field"><label>Data do atestado médico</label><input type="date" id="r-cert" value="${student.medicalCertificateDate || ''}"></div>
+    <div id="r-cert-status" style="margin:10px 0 14px;">${certStatus ? `<span class="mp-pill mp-pill-${certStatus.level}">${Utils.escapeHtml(certStatus.text)}</span>` : ''}</div>
     <div class="mp-field">
       <label>Observações de saúde / restrições</label>
       <textarea id="r-notes" rows="3">${Utils.escapeHtml(student.notes || '')}</textarea>
@@ -200,7 +193,6 @@ function regBindEvents(container) {
       monthlySessionsCount: Number(container.querySelector('#r-sessions').value) || 0,
       weekDays,
       schedule,
-      stage: container.querySelector('#r-stage').value,
       medicalCertificateDate: container.querySelector('#r-cert').value || null,
       notes: container.querySelector('#r-notes').value.trim(),
     });

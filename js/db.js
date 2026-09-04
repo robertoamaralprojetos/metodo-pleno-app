@@ -2,7 +2,7 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const STORES = {
   students: 'students',
@@ -14,6 +14,7 @@ const STORES = {
   physicalEvaluations: 'physicalEvaluations',
   dailySessionMeta: 'dailySessionMeta',
   appSettings: 'appSettings',
+  workoutTemplates: 'workoutTemplates',
 };
 
 let dbPromise = null;
@@ -81,6 +82,14 @@ function openDB() {
       // profissional no cabeçalho, etc. Registro único, id fixo 'global'.
       if (!db.objectStoreNames.contains(STORES.appSettings)) {
         db.createObjectStore(STORES.appSettings, { keyPath: 'id' });
+      }
+
+      // Fichas de treino (A a E): modelos de exercícios reutilizáveis por aluno, independentes
+      // de data — editáveis a qualquer momento em Planejar Aula. Um registro por aluno+ficha
+      // (id determinístico: studentId__ficha).
+      if (!db.objectStoreNames.contains(STORES.workoutTemplates)) {
+        const s = db.createObjectStore(STORES.workoutTemplates, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
       }
     };
 
