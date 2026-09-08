@@ -10,9 +10,95 @@ function stageLabel(value) {
   return STAGE_OPTIONS.find((s) => s.value === value)?.label || 'Não definido';
 }
 
+// Objetivo geral do aluno (ao lado do Estágio de treino) — junto com o Estágio, define
+// qual linha da tabela de %1RM (Metodologia de Treinamento e Periodização) se aplica.
+const OBJECTIVE_OPTIONS = [
+  { value: 'emagrecimento', label: 'Emagrecimento' },
+  { value: 'fortalecimento', label: 'Fortalecimento Muscular' },
+  { value: 'hipertrofia', label: 'Hipertrofia' },
+  { value: 'manutencao', label: 'Manutenção da Qualidade de Vida' },
+  { value: 'resistencia', label: 'Resistência Muscular Localizada' },
+];
+
+function objectiveLabel(value) {
+  return OBJECTIVE_OPTIONS.find((o) => o.value === value)?.label || 'Não definido';
+}
+
 // Fichas de treino: rótulos fixos (A a E) — modelos reutilizáveis de exercícios,
 // independentes de data, editáveis a qualquer momento (Planejar Aula).
 const FICHA_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
+
+// ---------- Teste de 1RM: tabela de referência (Metodologia de Treinamento e Periodização, Parte 1 — Musculação) ----------
+// Cruza Estágio (adaptacao/intermediario/avancado) × Objetivo para sugerir série/reps/%carga/descanso
+// a partir do 1RM testado. Faixas conforme documento de referência técnica do professor.
+const ONE_RM_GUIDANCE_TABLE = {
+  adaptacao: {
+    emagrecimento:  { metodologia: 'Circuito Metabólico de Adaptação (CMA)',        series: [2, 3], reps: [15, 20], pct: [40, 50], restSeconds: [30, 45] },
+    fortalecimento: { metodologia: 'Base Neural Progressiva (BNP)',                 series: [2, 3], reps: [10, 12], pct: [50, 60], restSeconds: [60, 90] },
+    hipertrofia:    { metodologia: 'Estímulo de Iniciação Muscular (EIM)',          series: [2, 3], reps: [10, 15], pct: [50, 65], restSeconds: [60, 60] },
+    manutencao:     { metodologia: 'Programa de Ativação Funcional Básica (PAFB)',  series: [2, 2], reps: [12, 15], pct: [40, 50], restSeconds: [60, 60] },
+    resistencia:    { metodologia: 'Circuito de Base Aeróbia-Muscular (CBAM)',      series: [2, 3], reps: [18, 25], pct: [30, 40], restSeconds: [20, 30] },
+  },
+  intermediario: {
+    emagrecimento:  { metodologia: 'Treinamento Intervalado de Resistência (TIR)',  series: [3, 4], reps: [12, 20], pct: [50, 65], restSeconds: [30, 45] },
+    fortalecimento: { metodologia: 'Progressão de Força Ondulatória (PFO)',         series: [3, 4], reps: [6, 10],  pct: [70, 80], restSeconds: [90, 120] },
+    hipertrofia:    { metodologia: 'Método de Sobrecarga Progressiva Ondulatória (MSPO)', series: [3, 4], reps: [8, 12], pct: [65, 80], restSeconds: [60, 90] },
+    manutencao:     { metodologia: 'Programa de Manutenção Funcional Progressiva (PMFP)', series: [2, 3], reps: [10, 15], pct: [50, 65], restSeconds: [60, 60] },
+    resistencia:    { metodologia: 'Circuito Metabólico Intermediário (CMI)',       series: [3, 4], reps: [15, 25], pct: [40, 55], restSeconds: [30, 30] },
+  },
+  avancado: {
+    emagrecimento:  { metodologia: 'Método Metabólico de Alta Densidade (MMAD)',    series: [4, 5], reps: [12, 20], pct: [55, 70], restSeconds: [20, 40] },
+    fortalecimento: { metodologia: 'Bloco de Força Máxima (BFM)',                   series: [4, 6], reps: [1, 6],   pct: [85, 95], restSeconds: [180, 300] },
+    hipertrofia:    { metodologia: 'Método de Sobrecarga por Volume em Blocos (MSVB)', series: [4, 5], reps: [6, 15], pct: [65, 85], restSeconds: [60, 90] },
+    manutencao:     { metodologia: 'Programa de Preservação Neuromuscular Avançada (PPNA)', series: [3, 3], reps: [8, 15], pct: [55, 75], restSeconds: [60, 90] },
+    resistencia:    { metodologia: 'Circuito de Alta Resistência Avançada (CARA)',  series: [4, 5], reps: [20, 30], pct: [30, 50], restSeconds: [15, 30] },
+  },
+};
+
+// Devolve a linha da tabela para o estágio+objetivo do aluno, ou null se algum dos dois
+// não estiver definido / não existir combinação (não deveria acontecer, mas defensivo).
+function oneRmGuidance(stage, objective) {
+  return ONE_RM_GUIDANCE_TABLE[stage]?.[objective] || null;
+}
+
+// A partir do 1RM testado (kg) e da linha da tabela, calcula a faixa de carga de trabalho sugerida.
+function oneRmSuggestedLoad(oneRm, guidance) {
+  if (!oneRm || !guidance) return null;
+  const loadMin = Math.round((oneRm * guidance.pct[0]) / 100 * 2) / 2; // arredonda para 0.5kg
+  const loadMax = Math.round((oneRm * guidance.pct[1]) / 100 * 2) / 2;
+  return { loadMin, loadMax };
+}
+
+function formatRangeLabel(range, suffix) {
+  if (!range) return '';
+  return range[0] === range[1] ? `${range[0]}${suffix}` : `${range[0]}–${range[1]}${suffix}`;
+}
+
+// ---------- Ajuste hierárquico de treino (antes da data de revisão) ----------
+// Ordem fixa de progressão: repetição → série → descanso → carga. Ao registrar um ajuste,
+// o app sugere o próximo passo dessa sequência desde o último ajuste de carga (ou desde o início).
+const ADJUSTMENT_TYPE_OPTIONS = [
+  { value: 'reps', label: 'Repetições' },
+  { value: 'series', label: 'Séries' },
+  { value: 'descanso', label: 'Tempo de descanso' },
+  { value: 'carga', label: 'Carga' },
+];
+
+const ADJUSTMENT_ORDER = ['reps', 'series', 'descanso', 'carga'];
+
+function adjustmentTypeLabel(value) {
+  return ADJUSTMENT_TYPE_OPTIONS.find((a) => a.value === value)?.label || value;
+}
+
+// Dado o histórico de ajustes (já ordenado do mais recente para o mais antigo) de um
+// exercício específico, sugere o próximo tipo de ajuste na hierarquia. Reinicia o ciclo
+// (sugere "reps") sempre que o último ajuste registrado foi de carga, ou se não há histórico.
+function nextSuggestedAdjustment(historyDesc) {
+  const last = historyDesc && historyDesc[0];
+  if (!last || last.tipoAjuste === 'carga') return 'reps';
+  const idx = ADJUSTMENT_ORDER.indexOf(last.tipoAjuste);
+  return ADJUSTMENT_ORDER[Math.min(idx + 1, ADJUSTMENT_ORDER.length - 1)];
+}
 
 const WEEKDAYS = [
   { key: 'seg', label: 'Segunda' },
@@ -241,7 +327,17 @@ const CIRCUMFERENCE_FIELDS = [
 
 window.STAGE_OPTIONS = STAGE_OPTIONS;
 window.stageLabel = stageLabel;
+window.OBJECTIVE_OPTIONS = OBJECTIVE_OPTIONS;
+window.objectiveLabel = objectiveLabel;
 window.FICHA_OPTIONS = FICHA_OPTIONS;
+window.ONE_RM_GUIDANCE_TABLE = ONE_RM_GUIDANCE_TABLE;
+window.oneRmGuidance = oneRmGuidance;
+window.oneRmSuggestedLoad = oneRmSuggestedLoad;
+window.formatRangeLabel = formatRangeLabel;
+window.ADJUSTMENT_TYPE_OPTIONS = ADJUSTMENT_TYPE_OPTIONS;
+window.ADJUSTMENT_ORDER = ADJUSTMENT_ORDER;
+window.adjustmentTypeLabel = adjustmentTypeLabel;
+window.nextSuggestedAdjustment = nextSuggestedAdjustment;
 window.WEEKDAYS = WEEKDAYS;
 window.ANAMNESE_QUESTIONS = ANAMNESE_QUESTIONS;
 window.ACTIVITY_TYPE_OPTIONS = ACTIVITY_TYPE_OPTIONS;

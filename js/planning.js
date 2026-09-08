@@ -166,9 +166,13 @@ function planRenderHtml() {
       <td>${it.type === 'aerobico' ? '—' : restLabel(it.restSeconds)}</td>
       <td style="white-space:nowrap;">
         <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-fichaitem="${it.id}" type="button">${it.id === fichaEditingId ? 'Editando…' : 'Editar'}</button>
+        ${ProgressionView.adjustButtonHtml(it)}
         <button class="mp-btn-danger" data-del-fichaitem="${it.id}" type="button">Remover</button>
       </td>
-    </tr>`).join('');
+    </tr>
+    ${AppState.fichaAdjustItemId === it.id ? `<tr><td colspan="6">${ProgressionView.adjustFormHtml(it, fichaLetter)}</td></tr>` : ''}`).join('');
+
+  const fichaTemplate = template; // alias para clareza nas seções de progressão abaixo
 
   return `
   <div class="mp-card">
@@ -189,6 +193,15 @@ function planRenderHtml() {
           ${FICHA_OPTIONS.map((f) => `<option value="${f}" ${plan?.ficha === f ? 'selected' : ''}>Ficha ${f}</option>`).join('')}
         </select>
       </div>
+    </div>
+    <div class="mp-form-row mp-row2" style="margin-bottom:10px;">
+      <div class="mp-field"><label>Objetivo do aluno</label>
+        <select id="mp-plan-objetivo">
+          <option value="">Não definido</option>
+          ${OBJECTIVE_OPTIONS.map((o) => `<option value="${o.value}" ${student?.objective === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+        </select>
+      </div>
+      <div></div>
     </div>
     ${plan?.ficha ? `
     <div class="mp-form-actions" style="justify-content:flex-start;margin:0 0 18px;">
@@ -258,6 +271,14 @@ function planRenderHtml() {
       <tbody>${fichaItemRows}</tbody>
     </table>
     </div>` : `<div class="mp-sub" style="margin:14px 0 0;">Nenhum exercício na Ficha ${fichaLetter} ainda.</div>`}
+
+    ${ProgressionView.reviewDateFieldHtml(fichaTemplate, fichaLetter)}
+  </div>
+
+  <div class="mp-card" style="margin-top:20px;">
+    <h3>🏋️ Teste de 1RM — Ficha ${fichaLetter}</h3>
+    <div class="mp-sub" style="margin-top:10px;">Reaproveita os exercícios de força já cadastrados nesta Ficha. Ao registrar a carga máxima testada (1 execução), o app sugere série/reps/carga/descanso conforme o Estágio e Objetivo do aluno.</div>
+    ${ProgressionView.oneRmSectionHtml(fichaLetter, student, templateItems)}
   </div>
 
   <div id="mp-print-area" class="mp-print-only">
@@ -278,7 +299,16 @@ function planBindEvents(container) {
   if (stageSelect) stageSelect.addEventListener('change', async () => {
     await updateCurrentStudent({ stage: stageSelect.value });
     AppState.students = await StudentsData.listStudents();
+    render();
     Utils.toast('Estágio de treino atualizado ✓', 'success');
+  });
+
+  const objectiveSelect = container.querySelector('#mp-plan-objetivo');
+  if (objectiveSelect) objectiveSelect.addEventListener('change', async () => {
+    await updateCurrentStudent({ objective: objectiveSelect.value });
+    AppState.students = await StudentsData.listStudents();
+    render();
+    Utils.toast('Objetivo do aluno atualizado ✓', 'success');
   });
 
   const fichaSelect = container.querySelector('#mp-plan-ficha');
@@ -376,6 +406,7 @@ function planBindEvents(container) {
     btn.addEventListener('click', () => {
       AppState.planFicha = btn.dataset.fichaTab;
       AppState.planFichaEditItemId = null;
+      AppState.fichaAdjustItemId = null;
       render();
     });
   });
@@ -422,10 +453,16 @@ function planBindEvents(container) {
       const template = ensureTemplate(AppState.planFicha);
       template.items = template.items.filter((it) => it.id !== btn.dataset.delFichaitem);
       if (AppState.planFichaEditItemId === btn.dataset.delFichaitem) AppState.planFichaEditItemId = null;
+      if (AppState.fichaAdjustItemId === btn.dataset.delFichaitem) AppState.fichaAdjustItemId = null;
       render();
       await persistTemplate(template);
     });
   });
+
+  // ---------- Data de revisão + Ajuste hierárquico + Teste de 1RM ----------
+  ProgressionView.bindReviewDateEvents(container, AppState.planFicha);
+  ProgressionView.bindAdjustEvents(container, AppState.planFicha);
+  ProgressionView.bindOneRmEvents(container, AppState.planFicha);
 }
 
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };

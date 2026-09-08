@@ -54,6 +54,23 @@ function lastClassStatus(student, payments, sessions, execDate) {
   return null;
 }
 
+// Aviso de "revisão de treino vencendo": olha a Ficha aplicada no plano do dia (se houver)
+// e compara a reviewDate da Ficha com a data de execução — mesmo padrão visual do aviso
+// de última aula paga.
+function reviewDueStatus(fichaLetter, execDate) {
+  if (!fichaLetter) return null;
+  const template = getTemplate(fichaLetter);
+  const reviewDate = template?.reviewDate;
+  if (!reviewDate) return null;
+  if (reviewDate < execDate) {
+    return { level: 'alto', text: `⚠ A revisão da Ficha ${fichaLetter} está vencida desde ${Utils.formatDateBR(reviewDate)}. Considere reavaliar exercícios, carga, série, repetição ou descanso.` };
+  }
+  if (reviewDate === execDate) {
+    return { level: 'alto', text: `⚠ Hoje é a data de revisão da Ficha ${fichaLetter}. Considere reavaliar exercícios, carga, série, repetição ou descanso.` };
+  }
+  return null;
+}
+
 function execRenderHtml() {
   if (!AppState.execDate) AppState.execDate = Utils.todayISO();
   const execDate = AppState.execDate;
@@ -134,6 +151,7 @@ function execRenderHtml() {
 
   const student = currentStudent();
   const lastClass = lastClassStatus(student, AppState.data.payments, AppState.data.sessions, execDate);
+  const reviewDue = reviewDueStatus(plan?.ficha, execDate);
   const elasticColors = elasticColorList();
 
   return `
@@ -143,6 +161,7 @@ function execRenderHtml() {
       <div class="mp-field" style="margin:0;"><input type="date" id="mp-exec-date" value="${execDate}"></div>
     </div>
     ${lastClass ? `<div class="mp-inline-alert mp-inline-alert-${lastClass.level}" style="margin-top:12px;">${Utils.escapeHtml(lastClass.text)}</div>` : ''}
+    ${reviewDue ? `<div class="mp-inline-alert mp-inline-alert-${reviewDue.level}" style="margin-top:12px;">${Utils.escapeHtml(reviewDue.text)}</div>` : ''}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
       <span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span>
       <span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span>

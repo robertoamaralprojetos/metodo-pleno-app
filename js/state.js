@@ -2,7 +2,7 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
-const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [] };
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [], oneRmTests: [], adjustments: [] };
 
 const AppState = {
   students: [],
@@ -18,10 +18,11 @@ const AppState = {
   pinUnlocked: true,
   planFicha: 'A',
   planFichaEditItemId: null,
+  fichaAdjustItemId: null,
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
@@ -30,8 +31,10 @@ async function loadStudentData(id) {
     DB.getAllByIndex(DB.STORES.physicalEvaluations, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.dailySessionMeta, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.workoutTemplates, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.oneRepMaxTests, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.trainingAdjustments, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments };
 }
 
 async function stateInit() {
@@ -53,6 +56,7 @@ async function switchStudent(id) {
   AppState.planEditItemId = null;
   AppState.planFicha = 'A';
   AppState.planFichaEditItemId = null;
+  AppState.fichaAdjustItemId = null;
   AppState.data = id ? await loadStudentData(id) : { ...EMPTY_STUDENT_DATA };
   render();
 }
@@ -139,6 +143,40 @@ async function persistTemplate(template) {
   await DB.put(DB.STORES.workoutTemplates, template);
 }
 
+// ---------- Teste de 1RM ----------
+// Histórico de testes de um exercício específico (dentro de uma ficha), do mais recente
+// para o mais antigo.
+function oneRmHistoryFor(ficha, exerciseName) {
+  return AppState.data.oneRmTests
+    .filter((t) => t.ficha === ficha && t.exerciseName === exerciseName)
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
+function latestOneRm(ficha, exerciseName) {
+  return oneRmHistoryFor(ficha, exerciseName)[0] || null;
+}
+
+async function persistOneRmTest(test) {
+  AppState.data.oneRmTests.push(test);
+  render();
+  const ok = await AppShell.guardedPut(DB.STORES.oneRepMaxTests, test);
+  if (!ok) render();
+}
+
+// ---------- Ajustes de treino (hierarquia reps → séries → descanso → carga) ----------
+function adjustmentHistoryFor(ficha, exerciseName) {
+  return AppState.data.adjustments
+    .filter((a) => a.ficha === ficha && a.exerciseName === exerciseName)
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
+async function persistAdjustment(adjustment) {
+  AppState.data.adjustments.push(adjustment);
+  render();
+  const ok = await AppShell.guardedPut(DB.STORES.trainingAdjustments, adjustment);
+  if (!ok) render();
+}
+
 // Borg efetivo de um dia: nota única (modo "treino geral") ou média dos Borgs individuais
 // daquele dia (modo "por exercício" — inclui dias antigos, sem ficha registrada).
 function computeDailyBorg(sessions, dailyMeta, date) {
@@ -185,3 +223,8 @@ window.templateId = templateId;
 window.getTemplate = getTemplate;
 window.ensureTemplate = ensureTemplate;
 window.persistTemplate = persistTemplate;
+window.oneRmHistoryFor = oneRmHistoryFor;
+window.latestOneRm = latestOneRm;
+window.persistOneRmTest = persistOneRmTest;
+window.adjustmentHistoryFor = adjustmentHistoryFor;
+window.persistAdjustment = persistAdjustment;

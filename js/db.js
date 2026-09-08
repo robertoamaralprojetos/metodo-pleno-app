@@ -2,7 +2,7 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const STORES = {
   students: 'students',
@@ -15,6 +15,8 @@ const STORES = {
   dailySessionMeta: 'dailySessionMeta',
   appSettings: 'appSettings',
   workoutTemplates: 'workoutTemplates',
+  oneRepMaxTests: 'oneRepMaxTests',
+  trainingAdjustments: 'trainingAdjustments',
 };
 
 let dbPromise = null;
@@ -90,6 +92,22 @@ function openDB() {
       if (!db.objectStoreNames.contains(STORES.workoutTemplates)) {
         const s = db.createObjectStore(STORES.workoutTemplates, { keyPath: 'id' });
         s.createIndex('byStudent', 'studentId', { unique: false });
+      }
+
+      // Testes de 1RM: histórico completo por aluno (um registro por teste realizado,
+      // nunca sobrescreve o anterior — permite acompanhar evolução de força ao longo do tempo).
+      if (!db.objectStoreNames.contains(STORES.oneRepMaxTests)) {
+        const s = db.createObjectStore(STORES.oneRepMaxTests, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'data'], { unique: false });
+      }
+
+      // Ajustes de treino (reps/séries/descanso/carga) feitos antes da data de revisão da
+      // ficha: histórico completo por aluno, para rastrear a hierarquia de progressão.
+      if (!db.objectStoreNames.contains(STORES.trainingAdjustments)) {
+        const s = db.createObjectStore(STORES.trainingAdjustments, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'data'], { unique: false });
       }
     };
 
