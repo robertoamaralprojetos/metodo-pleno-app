@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.11.1';
+const APP_VERSION = 'v1.12.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
@@ -13,6 +13,7 @@ const HELP_TOPICS = [
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas, check-ins e consistência de treino.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
+  { title: 'Avaliação Postural', text: 'Checklist de achados posturais por segmento, fotos opcionais (com autorização do aluno) com grade e medida de ângulos, histórico com comparação e sugestão de ênfase de treino cruzada com a Avaliação Física, o objetivo e as Fichas.' },
   { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal (bioimpedância), circunferências e o trabalho necessário para o aluno, com histórico e gráficos.' },
 ];
 
@@ -90,6 +91,7 @@ function render() {
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
       if (AppState.activeTab === 'avaliacao') { EvaluationView.bindEvents(contentEl); EvaluationView.afterRender(contentEl); }
       if (AppState.activeTab === 'fisica') { PhysicalEvaluationView.bindEvents(contentEl); PhysicalEvaluationView.afterRender(contentEl); }
+      if (AppState.activeTab === 'postural') { PosturalView.bindEvents(contentEl); }
     }
   } catch (err) {
     console.error(err);
@@ -155,6 +157,7 @@ function renderHeader() {
             <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
             <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
             <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
+            <option value="postural" ${AppState.activeTab === 'postural' ? 'selected' : ''}>Avaliação Postural (${AppState.data.posturalEvaluations.length})</option>
           </optgroup>
         </select>
       </div>` : ''}
@@ -193,6 +196,7 @@ function renderTabContent() {
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();
   if (AppState.activeTab === 'avaliacao') return EvaluationView.renderHtml();
   if (AppState.activeTab === 'fisica') return PhysicalEvaluationView.renderHtml();
+  if (AppState.activeTab === 'postural') return PosturalView.renderHtml();
   return '';
 }
 

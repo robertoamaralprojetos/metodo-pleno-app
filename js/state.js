@@ -2,7 +2,7 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
-const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [], oneRmTests: [], adjustments: [], checkins: [], periodizations: [] };
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [], oneRmTests: [], adjustments: [], checkins: [], periodizations: [], posturalEvaluations: [] };
 
 const AppState = {
   students: [],
@@ -22,7 +22,7 @@ const AppState = {
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations, posturalEvaluations] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
@@ -35,8 +35,9 @@ async function loadStudentData(id) {
     DB.getAllByIndex(DB.STORES.trainingAdjustments, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.checkins, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.periodizations, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.posturalEvaluations, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations, posturalEvaluations };
 }
 
 async function stateInit() {
