@@ -189,6 +189,12 @@ function computeDailyBorg(sessions, dailyMeta, date) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+// Número de treinos = dias distintos com ao menos um exercício concluído. Não confundir com
+// sessions.length, que é o total de exercícios registrados (um treino tem vários).
+function countTrainingDays(sessions) {
+  return new Set(sessions.map((s) => s.date)).size;
+}
+
 function exerciseList() {
   const set = new Set(AppState.data.sessions.map((s) => s.exerciseName));
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -213,6 +219,7 @@ window.getPlanByDate = getPlanByDate;
 window.ensurePlan = ensurePlan;
 window.persistPlan = persistPlan;
 window.exerciseList = exerciseList;
+window.countTrainingDays = countTrainingDays;
 window.elasticColorList = elasticColorList;
 window.dailyMetaId = dailyMetaId;
 window.getDailyMeta = getDailyMeta;

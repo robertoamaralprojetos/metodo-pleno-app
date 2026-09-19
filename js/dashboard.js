@@ -12,23 +12,31 @@ function dailyBorgSeries() {
     .filter((d) => d.value != null);
 }
 
+// Exercícios que têm ao menos um registro com Borg individual (modo "Por exercício").
+function exercisesWithBorg() {
+  const set = new Set(AppState.data.sessions.filter((s) => s.borg != null).map((s) => s.exerciseName));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
 function dashRenderHtml() {
   const sessions = AppState.data.sessions;
   if (!sessions.length) {
     return `<div class="mp-empty"><h3>Ainda não há dados de treino</h3><p>Assim que você lançar sessões na aba "Registro de Treino", os gráficos de evolução aparecem aqui.</p></div>`;
   }
   const ex = exerciseList();
-  const totalSessoes = sessions.length;
+  const totalSessoes = countTrainingDays(sessions);
   const ultimaData = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0].date;
   const primeiraData = [...sessions].sort((a, b) => a.date.localeCompare(b.date))[0].date;
   const dailyBorg = dailyBorgSeries();
   const mediaBorgGeral = dailyBorg.length ? (dailyBorg.reduce((a, d) => a + d.value, 0) / dailyBorg.length).toFixed(1) : '—';
 
   const exOptions = ex.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
+  const exBorg = exercisesWithBorg();
+  const exBorgOptions = exBorg.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
 
   return `
   <div class="mp-kpis">
-    <div class="mp-kpi"><div class="mp-kpi-label">Sessões registradas</div><div class="mp-kpi-value">${totalSessoes}</div><div class="mp-kpi-note">desde ${Utils.formatDateBR(primeiraData)}</div></div>
+    <div class="mp-kpi"><div class="mp-kpi-label">Sessões registradas</div><div class="mp-kpi-value">${totalSessoes}</div><div class="mp-kpi-note">treinos (dias) desde ${Utils.formatDateBR(primeiraData)}</div></div>
     <div class="mp-kpi"><div class="mp-kpi-label">Última sessão</div><div class="mp-kpi-value" style="font-size:19px;">${Utils.formatDateBR(ultimaData)}</div></div>
     <div class="mp-kpi"><div class="mp-kpi-label">Borg médio geral</div><div class="mp-kpi-value">${mediaBorgGeral}</div><div class="mp-kpi-note">escala CR-10, por treino</div></div>
     <div class="mp-kpi"><div class="mp-kpi-label">Exercícios distintos</div><div class="mp-kpi-value">${ex.length}</div></div>
@@ -45,6 +53,16 @@ function dashRenderHtml() {
       <div class="mp-sub">Um valor de Borg por dia de treino (média, se registrado por exercício; nota única, se registrado por treino geral)</div>
       <div class="mp-chart-box" id="mp-chart-borg-treino"></div>
     </div>
+  </div>
+
+  <div class="mp-card" style="margin-bottom:20px;">
+    <h3>Percepção de esforço por exercício</h3>
+    <div class="mp-sub">Borg (CR-10) de cada execução do exercício escolhido — disponível quando o Borg é registrado "Por exercício". Com a carga estável, Borg subindo sugere fadiga acumulada; Borg caindo sugere adaptação.</div>
+    ${exBorg.length ? `
+    <select class="mp-select-inline" id="mp-ex-borg-select" style="margin-bottom:14px;">${exBorgOptions}</select>
+    <div class="mp-chart-box" id="mp-chart-borg-exercicio"></div>
+    <div class="mp-sub" id="mp-borg-exercicio-resumo" style="margin:10px 0 0;"></div>` : `
+    <div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Ainda não há exercícios com Borg individual. Registre o Borg "Por exercício" ao concluir os exercícios para acompanhar cada um aqui.</div>`}
   </div>
 
   <div class="mp-grid2">
@@ -96,6 +114,28 @@ function drawBorgPerTreinoChart(container, dailyBorg) {
   }
   const points = dailyBorg.map((d) => ({ label: Utils.formatDateBR(d.date).slice(0, 5), value: Math.round(d.value * 10) / 10 }));
   target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 10 }));
+}
+
+function drawBorgPerExerciseChart(container, exerciseName) {
+  const target = container.querySelector('#mp-chart-borg-exercicio');
+  const resumo = container.querySelector('#mp-borg-exercicio-resumo');
+  if (!target) return;
+  target.innerHTML = '';
+  const records = AppState.data.sessions
+    .filter((s) => s.exerciseName === exerciseName && s.borg != null)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0));
+  if (!records.length) {
+    target.innerHTML = '<div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Sem registros de Borg para este exercício.</div>';
+    if (resumo) resumo.textContent = '';
+    return;
+  }
+  const points = records.map((s) => ({ label: Utils.formatDateBR(s.date).slice(0, 5), value: s.borg }));
+  target.appendChild(Charts.lineChart(points, { color: Charts.COLORS.dourado, pointColor: Charts.COLORS.verdePrincipal, yMin: 0, yMax: 10 }));
+  if (resumo) {
+    const last = records[records.length - 1];
+    const avg = records.reduce((a, s) => a + s.borg, 0) / records.length;
+    resumo.textContent = `${records.length} registro(s) · último Borg: ${last.borg} (${ExecutionView.BORG_LABELS[last.borg]}) · média: ${avg.toFixed(1)}`;
+  }
 }
 
 function drawBorgChart(container, dailyBorg) {
@@ -153,6 +193,8 @@ function dashAfterRender(container) {
   drawLoadChart(container, exercicio);
   const dailyBorg = dailyBorgSeries();
   drawBorgPerTreinoChart(container, dailyBorg);
+  const exBorgSelect = container.querySelector('#mp-ex-borg-select');
+  if (exBorgSelect) drawBorgPerExerciseChart(container, exBorgSelect.value);
   drawBorgChart(container, dailyBorg);
   drawAulasDadasChart(container);
   drawTrilha(container);
@@ -161,6 +203,8 @@ function dashAfterRender(container) {
 function dashBindEvents(container) {
   const exSelect = container.querySelector('#mp-ex-select');
   if (exSelect) exSelect.addEventListener('change', () => drawLoadChart(container, exSelect.value));
+  const exBorgSelect = container.querySelector('#mp-ex-borg-select');
+  if (exBorgSelect) exBorgSelect.addEventListener('change', () => drawBorgPerExerciseChart(container, exBorgSelect.value));
 }
 
 window.DashboardView = { renderHtml: dashRenderHtml, bindEvents: dashBindEvents, afterRender: dashAfterRender };

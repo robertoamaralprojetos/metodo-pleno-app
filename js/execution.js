@@ -118,7 +118,7 @@ function execRenderHtml() {
     const alvoText = isAerobico ? formatAerobicSummary(it) : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}`;
     return `
     <div class="mp-check-card" id="mp-check-${it.id}">
-      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}${isAerobico ? ' <span class="mp-pill mp-pill-moderado">aeróbico</span>' : ''}<span class="mp-check-alvo">alvo: ${alvoText}</span></div>
+      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}${isAerobico ? ' <span class="mp-pill mp-pill-moderado">aeróbico</span>' : ''}${it.origin === 'avulso' ? ' <span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">avulso</span>' : ''}<span class="mp-check-alvo">alvo: ${alvoText}</span></div>
       <div class="mp-check-row">
         ${detailInputs}
         ${isOverallMode ? '' : `
@@ -129,7 +129,7 @@ function execRenderHtml() {
       </div>
       <div class="mp-field" style="margin-top:10px;">
         <label>Observações (opcional)</label>
-        <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc."></textarea>
+        <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc.">${Utils.escapeHtml(it.notes || '')}</textarea>
       </div>
       ${isAerobico ? '' : `
       <div class="mp-timer" data-item-id="${it.id}">
@@ -198,24 +198,13 @@ function execRenderHtml() {
 
   <div class="mp-card" style="margin-top:20px;">
     <h3>Registrar exercício avulso (fora do plano)</h3>
-    <div class="mp-sub">Use para lançar algo que não estava no plano, ou se você prefere registrar tudo manualmente.</div>
+    <div class="mp-sub">Use para incluir no treino um exercício que não estava no plano. Ao clicar em "Salvar registro", ele entra na lista de exercícios pendentes lá em cima (com cronômetro de descanso) e só vai para o histórico quando você clicar em "Concluir exercício" — é aí que o Borg é registrado.</div>
     <form id="mp-session-form">
       <div class="mp-form-row mp-row2">
         <div class="mp-field"><label>Data</label><input type="date" id="mp-f-data" value="${execDate}" required></div>
       </div>
       ${exerciseItemFormHtml('mp-f', null, elasticColors, 'mp-ex-list')}
       ${datalist}
-      ${isOverallMode ? `<div class="mp-sub" style="margin-top:0;">Hoje está em modo "Treino geral" — a nota de Borg deste exercício vai ser representada pela nota única lá em cima.</div>` : `
-      <div class="mp-field" style="margin-bottom:12px;">
-        <label>Percepção de Esforço — Escala de Borg (CR-10)</label>
-        <div class="mp-borg-wrap">
-          <div class="mp-borg-top">
-            <span class="mp-borg-value" id="mp-borg-num">5</span>
-            <span class="mp-borg-label" id="mp-borg-lbl">Difícil</span>
-          </div>
-          <input type="range" id="mp-f-borg" min="0" max="10" step="1" value="5">
-        </div>
-      </div>`}
       <div class="mp-field" style="margin-bottom:14px;">
         <label>Observações (opcional)</label>
         <textarea id="mp-f-obs" placeholder="Dor, adaptação, execução, etc."></textarea>
@@ -236,13 +225,6 @@ function execRenderHtml() {
     </table>
     </div>` : `<div class="mp-sub" style="margin:0;">Nenhum registro ainda. Lance a primeira sessão acima.</div>`}
   </div>`;
-}
-
-async function persistSession(session) {
-  AppState.data.sessions.push(session);
-  render();
-  const ok = await AppShell.guardedPut(DB.STORES.sessions, session);
-  if (!ok) render();
 }
 
 function execBindEvents(container) {
@@ -378,33 +360,25 @@ function execBindEvents(container) {
 
   const form = container.querySelector('#mp-session-form');
   if (form) {
-    const borgInput = container.querySelector('#mp-f-borg');
-    const borgNum = container.querySelector('#mp-borg-num');
-    const borgLbl = container.querySelector('#mp-borg-lbl');
-    if (borgInput) {
-      borgInput.addEventListener('input', () => {
-        const v = parseInt(borgInput.value, 10);
-        borgNum.textContent = v;
-        borgLbl.textContent = BORG_LABELS[v];
-      });
-    }
     form.addEventListener('submit', (e) => e.preventDefault());
     const sessionBtn = container.querySelector('#mp-session-submit');
     if (sessionBtn) sessionBtn.addEventListener('click', async () => {
       const result = readExerciseItemForm(container, 'mp-f');
       if (result.error) { Utils.toast(result.error, 'error'); return; }
-      const session = {
-        id: dbUuid(),
-        ts: Date.now(),
-        studentId: AppState.currentId,
-        date: container.querySelector('#mp-f-data').value || AppState.execDate,
-        ...result,
-        borg: (() => { const el = container.querySelector('#mp-f-borg'); return el ? parseInt(el.value, 10) : null; })(),
-        notes: container.querySelector('#mp-f-obs').value.trim(),
-        planItemId: null,
-      };
-      await persistSession(session);
-      Utils.toast('Registro salvo ✓', 'success');
+      const date = container.querySelector('#mp-f-data').value || AppState.execDate;
+      const notes = container.querySelector('#mp-f-obs').value.trim();
+      // O exercício avulso entra como item PENDENTE do plano daquela data (igual aos
+      // exercícios planejados): só vira registro no histórico ao clicar em "Concluir exercício".
+      const plan = ensurePlan(date);
+      const newItem = { id: dbUuid(), ...result, notes, origin: 'avulso', completed: false, sessionId: null };
+      plan.items.push(newItem);
+      AppState.execDate = date;
+      render();
+      Utils.toast('Exercício adicionado como pendente ✓', 'success');
+      const card = document.getElementById('mp-check-' + newItem.id);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const ok = await AppShell.guardedPut(DB.STORES.lessonPlans, plan);
+      if (!ok) render();
     });
   }
 

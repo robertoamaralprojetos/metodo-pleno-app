@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.8.0';
+const APP_VERSION = 'v1.9.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
@@ -9,8 +9,8 @@ const HELP_TOPICS = [
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não), atualizável a qualquer momento.' },
   { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
-  { title: 'Registro de Treino', text: 'Execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos.' },
-  { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido, aulas dadas e consistência de treino.' },
+  { title: 'Registro de Treino', text: 'Execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
+  { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas e consistência de treino.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
   { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal (bioimpedância) e circunferências, com histórico e gráficos.' },
 ];
@@ -148,7 +148,7 @@ function renderHeader() {
             <option value="pagamento" ${AppState.activeTab === 'pagamento' ? 'selected' : ''}>Controle de Pagamento</option>
             <option value="anamnese" ${AppState.activeTab === 'anamnese' ? 'selected' : ''}>Anamnese</option>
             <option value="plano" ${AppState.activeTab === 'plano' ? 'selected' : ''}>Planejar Aula</option>
-            <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${AppState.data.sessions.length})</option>
+            <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${countTrainingDays(AppState.data.sessions)})</option>
             <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
             <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
             <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
