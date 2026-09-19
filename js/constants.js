@@ -357,3 +357,6 @@ window.formatAerobicSummary = formatAerobicSummary;
 window.aerobicFieldHtml = aerobicFieldHtml;
 window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.13.1';

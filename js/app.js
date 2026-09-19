@@ -1,6 +1,65 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.12.2';
+const APP_VERSION = 'v1.13.1';
+
+// Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
+// Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
+// o app avisa no topo — evita ficar com arquivos misturados depois de um envio incompleto ao GitHub.
+// Ao alterar um arquivo, suba o carimbo dele e a versão mínima correspondente nesta tabela.
+const MODULE_MIN = {
+  'utils.js': 'v1.13.1',
+  'constants.js': 'v1.13.1',
+  'db.js': 'v1.13.1',
+  'evaluation-data.js': 'v1.13.1',
+  'charts.js': 'v1.13.1',
+  'rest-timer.js': 'v1.13.1',
+  'students.js': 'v1.13.1',
+  'state.js': 'v1.13.1',
+  'checkin.js': 'v1.13.1',
+  'periodization.js': 'v1.13.1',
+  'postural-logic.js': 'v1.13.1',
+  'postural.js': 'v1.13.1',
+  'monitor-logic.js': 'v1.13.1',
+  'monitor.js': 'v1.13.1',
+  'pin-lock.js': 'v1.13.1',
+  'settings.js': 'v1.13.1',
+  'registration.js': 'v1.13.1',
+  'payment-logic.js': 'v1.13.1',
+  'payments.js': 'v1.13.1',
+  'admin.js': 'v1.13.1',
+  'anamnesis.js': 'v1.13.1',
+  'progression.js': 'v1.13.1',
+  'planning.js': 'v1.13.1',
+  'execution.js': 'v1.13.1',
+  'dashboard.js': 'v1.13.1',
+  'evaluation.js': 'v1.13.1',
+  'physical-evaluation.js': 'v1.13.1',
+  'backup.js': 'v1.13.1',
+  'app.js': 'v1.13.1',
+};
+
+function versionParts(v) {
+  const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(v || '');
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+function versionLess(a, b) {
+  const x = versionParts(a);
+  const y = versionParts(b);
+  if (!x) return true;
+  for (let i = 0; i < 3; i++) { if (x[i] !== y[i]) return x[i] < y[i]; }
+  return false;
+}
+function integrityProblems() {
+  const built = window.MP_BUILD || {};
+  return Object.keys(MODULE_MIN)
+    .filter((file) => versionLess(built[file], MODULE_MIN[file]))
+    .map((file) => `${file} (${built[file] ? 'versão ' + built[file] : 'sem carimbo — arquivo antigo ou ausente'}, esperado ${MODULE_MIN[file]})`);
+}
+function integrityBannerHtml() {
+  const problems = integrityProblems();
+  if (!problems.length) return '';
+  return `<div class="mp-warning-banner">⚠ Arquivos do app com versões diferentes: ${Utils.escapeHtml(problems.join('; '))}. Reenvie esses arquivos ao GitHub, aguarde 1 a 2 minutos e recarregue a página (em aba anônima, se persistir).</div>`;
+}
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
@@ -12,6 +71,7 @@ const HELP_TOPICS = [
   { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas, check-ins e consistência de treino.' },
+  { title: 'Carga e Deload', text: 'Detecta platô por exercício e sinais de sobrecarga (esforço, check-ins e volume semanal) e sugere deload por volume ou espelhado, seguindo a hierarquia reps → séries → descanso → carga em ordem inversa. Os limites são editáveis em Configurações.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
   { title: 'Avaliação Postural', text: 'Checklist de achados posturais por segmento, fotos opcionais (com autorização do aluno) com grade e medida de ângulos, histórico com comparação e sugestão de ênfase de treino cruzada com a Avaliação Física, o objetivo e as Fichas.' },
   { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal (bioimpedância), circunferências e o trabalho necessário para o aluno, com histórico e gráficos.' },
@@ -89,6 +149,7 @@ function render() {
       if (AppState.activeTab === 'plano') { PlanningView.bindEvents(contentEl); }
       if (AppState.activeTab === 'registro') { ExecutionView.bindEvents(contentEl); }
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
+      if (AppState.activeTab === 'carga') { MonitorView.bindEvents(contentEl); }
       if (AppState.activeTab === 'avaliacao') { EvaluationView.bindEvents(contentEl); EvaluationView.afterRender(contentEl); }
       if (AppState.activeTab === 'fisica') { PhysicalEvaluationView.bindEvents(contentEl); PhysicalEvaluationView.afterRender(contentEl); }
       if (AppState.activeTab === 'postural') { PosturalView.bindEvents(contentEl); }
@@ -124,6 +185,7 @@ function renderHeader() {
         </div>
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
+      ${integrityBannerHtml()}
       ${BackupModule.needsBackupReminder(AppState.settings) ? `
       <div class="mp-warning-banner mp-warning-soft">
         💾 ${AppState.settings?.lastBackupAt ? `Faz mais de 7 dias que você não faz backup (último em ${Utils.formatDateBR(AppState.settings.lastBackupAt)}).` : 'Você ainda não fez nenhum backup dos dados.'}
@@ -155,6 +217,7 @@ function renderHeader() {
             <option value="plano" ${AppState.activeTab === 'plano' ? 'selected' : ''}>Planejar Aula</option>
             <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${countTrainingDays(AppState.data.sessions)})</option>
             <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
+            <option value="carga" ${AppState.activeTab === 'carga' ? 'selected' : ''}>Carga e Deload</option>
             <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
             <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
             <option value="postural" ${AppState.activeTab === 'postural' ? 'selected' : ''}>Avaliação Postural (${AppState.data.posturalEvaluations.length})</option>
@@ -194,6 +257,7 @@ function renderTabContent() {
   if (AppState.activeTab === 'plano') return PlanningView.renderHtml();
   if (AppState.activeTab === 'registro') return ExecutionView.renderHtml();
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();
+  if (AppState.activeTab === 'carga') return MonitorView.renderHtml();
   if (AppState.activeTab === 'avaliacao') return EvaluationView.renderHtml();
   if (AppState.activeTab === 'fisica') return PhysicalEvaluationView.renderHtml();
   if (AppState.activeTab === 'postural') return PosturalView.renderHtml();
@@ -314,3 +378,6 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   stateInit();
 });
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.13.1';

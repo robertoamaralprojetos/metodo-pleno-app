@@ -96,3 +96,6 @@ window.PinLock = {
   renderLockScreen: pinLockRenderHtml,
   bindLockEvents: pinLockBindEvents,
 };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['pin-lock.js'] = 'v1.13.1';

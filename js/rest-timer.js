@@ -90,3 +90,6 @@ function rehydrate(itemId, defaultSeconds) {
 }
 
 window.RestTimer = { getTimer, start, pause, toggle, reset, discard, rehydrate };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['rest-timer.js'] = 'v1.13.1';

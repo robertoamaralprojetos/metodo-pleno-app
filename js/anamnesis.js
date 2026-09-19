@@ -130,3 +130,6 @@ function anamBindEvents(container) {
 }
 
 window.AnamnesisView = { renderHtml: anamRenderHtml, bindEvents: anamBindEvents };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['anamnesis.js'] = 'v1.13.1';

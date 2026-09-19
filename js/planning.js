@@ -466,3 +466,6 @@ function planBindEvents(container) {
 }
 
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.13.1';

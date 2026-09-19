@@ -212,3 +212,6 @@ function dashBindEvents(container) {
 }
 
 window.DashboardView = { renderHtml: dashRenderHtml, bindEvents: dashBindEvents, afterRender: dashAfterRender };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['dashboard.js'] = 'v1.13.1';

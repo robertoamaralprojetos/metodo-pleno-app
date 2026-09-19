@@ -171,3 +171,6 @@ function monthLabelFromKey(key) {
 }
 
 window.Charts = { lineChart, barChart, trilha, monthLabelFromKey, COLORS: CHART_COLORS, MONTHS_PT };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['charts.js'] = 'v1.13.1';

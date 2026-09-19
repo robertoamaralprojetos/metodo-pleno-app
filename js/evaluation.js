@@ -338,3 +338,6 @@ function evalBindEvents(container) {
 }
 
 window.EvaluationView = { renderHtml: evalRenderHtml, bindEvents: evalBindEvents, afterRender: evalAfterRender };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['evaluation.js'] = 'v1.13.1';

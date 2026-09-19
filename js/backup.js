@@ -85,3 +85,6 @@ async function importBackup(file) {
 }
 
 window.BackupModule = { exportBackup, importBackup, daysSinceBackup, needsBackupReminder };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.13.1';

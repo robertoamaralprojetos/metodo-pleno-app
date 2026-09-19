@@ -230,3 +230,6 @@ function uuid() {
 
 window.DB = DB;
 window.dbUuid = uuid;
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['db.js'] = 'v1.13.1';

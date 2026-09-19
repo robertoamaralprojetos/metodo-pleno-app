@@ -604,3 +604,6 @@ function perBindEvents(container) {
 }
 
 window.PeriodizationView = { renderHtml: perRenderHtml, bindEvents: perBindEvents, phasePillHtml: perPhasePillHtml };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['periodization.js'] = 'v1.13.1';

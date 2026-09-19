@@ -238,3 +238,6 @@ window.latestOneRm = latestOneRm;
 window.persistOneRmTest = persistOneRmTest;
 window.adjustmentHistoryFor = adjustmentHistoryFor;
 window.persistAdjustment = persistAdjustment;
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['state.js'] = 'v1.13.1';

@@ -183,3 +183,6 @@ window.PaymentLogic = {
   makeupDisplayStatus,
   vacationCharge,
 };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['payment-logic.js'] = 'v1.13.1';

@@ -34,9 +34,8 @@ function posSortedDesc() {
 }
 
 function posFindingText(f) {
-  const def = PosturalLogic.FINDING_BY_KEY[f.key];
-  if (!def) return '';
-  return `${def.label}${f.side && PosturalLogic.SIDE_LABELS[f.side] ? ' (' + PosturalLogic.SIDE_LABELS[f.side] + ')' : ''} · ${PosturalLogic.SEVERITY_LABELS[f.severity]}`;
+  const text = PosturalLogic.describeFinding(f);
+  return text ? `${text} · ${PosturalLogic.SEVERITY_LABELS[f.severity]}` : '';
 }
 
 // ---------- Fotos ----------
@@ -234,9 +233,9 @@ function posFormHtml(draft) {
           <option value="0" ${!cur.severity ? 'selected' : ''}>—</option>
           ${[1, 2, 3].map((s) => `<option value="${s}" ${cur.severity === s ? 'selected' : ''}>${PosturalLogic.SEVERITY_LABELS[s]}</option>`).join('')}
         </select></td>
-        <td>${def.side ? `<select class="mp-select-inline" data-pf-side="${def.key}">
-          <option value="" ${!cur.side ? 'selected' : ''}>lado</option>
-          ${['D', 'E', 'B'].map((s) => `<option value="${s}" ${cur.side === s ? 'selected' : ''}>${PosturalLogic.SIDE_LABELS[s][0].toUpperCase() + PosturalLogic.SIDE_LABELS[s].slice(1)}</option>`).join('')}
+        <td>${PosturalLogic.sideOptionsFor(def) ? `<select class="mp-select-inline" style="max-width:100%;" data-pf-side="${def.key}">
+          <option value="" ${!cur.side ? 'selected' : ''}>${def.sideRequired ? Utils.escapeHtml((def.sideLabel || 'Selecione') + ' *') : 'lado'}</option>
+          ${PosturalLogic.sideOptionsFor(def).map(([code, label]) => `<option value="${code}" ${cur.side === code ? 'selected' : ''}>${Utils.escapeHtml(label)}</option>`).join('')}
         </select>` : ''}</td>
       </tr>`);
   });
@@ -263,7 +262,7 @@ function posFormHtml(draft) {
     <div class="mp-form-row mp-row3" style="margin-bottom:8px;">
       <div class="mp-field"><label>Data da avaliação</label><input type="date" id="pos-date" value="${draft.date}"></div>
     </div>
-    <div class="mp-table-scroll"><table class="mp-table"><thead><tr><th>Achado</th><th>Gravidade</th><th>Lado</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+    <div class="mp-table-scroll"><table class="mp-table"><thead><tr><th>Achado</th><th>Gravidade</th><th>Lado / padrão</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
 
     <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Fotos posturais (opcional)</h4>
     <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;">
@@ -376,12 +375,12 @@ function posHistoryHtml() {
     if (cur && !prev) compareHtml = '<div class="mp-sub" style="margin:12px 0 0;">Esta é a primeira avaliação postural: não há anterior para comparar.</div>';
     else if (cur) {
       const cmp = PosturalLogic.compareEvaluations(prev, cur);
-      const pill = (s) => ({ melhorou: '<span class="mp-pill mp-pill-leve">melhorou</span>', resolvido: '<span class="mp-pill mp-pill-leve">resolvido</span>', piorou: '<span class="mp-pill mp-pill-alto">piorou</span>', novo: '<span class="mp-pill mp-pill-moderado">novo</span>', igual: '<span class="mp-pill mp-pill-neutro">igual</span>' }[s]);
-      const sev = (n) => n ? PosturalLogic.SEVERITY_LABELS[n] : '—';
+      const pill = (s) => ({ mudou: '<span class="mp-pill mp-pill-moderado">mudou de lado/padrão</span>', melhorou: '<span class="mp-pill mp-pill-leve">melhorou</span>', resolvido: '<span class="mp-pill mp-pill-leve">resolvido</span>', piorou: '<span class="mp-pill mp-pill-alto">piorou</span>', novo: '<span class="mp-pill mp-pill-moderado">novo</span>', igual: '<span class="mp-pill mp-pill-neutro">igual</span>' }[s]);
+      const sev = (n, d) => n ? PosturalLogic.SEVERITY_LABELS[n] + (d ? `<div style="font-size:11.5px;color:var(--texto-suave);">${Utils.escapeHtml(d)}</div>` : '') : '—';
       compareHtml = `
       <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Comparação: ${Utils.formatDateBR(prev.date)} → ${Utils.formatDateBR(cur.date)}</h4>
       ${cmp.length ? `<div class="mp-table-scroll"><table class="mp-table"><thead><tr><th>Achado</th><th>Anterior</th><th>Atual</th><th>Evolução</th></tr></thead><tbody>
-        ${cmp.map((c) => `<tr><td>${Utils.escapeHtml(c.label)}</td><td>${sev(c.prev)}</td><td>${sev(c.cur)}</td><td>${pill(c.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="mp-sub" style="margin:0;">Nenhum achado nas duas avaliações.</div>'}`;
+        ${cmp.map((c) => `<tr><td>${Utils.escapeHtml(c.label)}</td><td>${sev(c.prev, c.prevDetail)}</td><td>${sev(c.cur, c.curDetail)}</td><td>${pill(c.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="mp-sub" style="margin:0;">Nenhum achado nas duas avaliações.</div>'}`;
     }
   }
 
@@ -446,6 +445,11 @@ function posBindEvents(container) {
 
   container.querySelector('#pos-save')?.addEventListener('click', async () => {
     const findings = Object.entries(draft.findings).map(([key, v]) => ({ key, severity: v.severity, side: v.side || null }));
+    const missingSide = findings.map((f) => PosturalLogic.FINDING_BY_KEY[f.key]).filter((def) => def && def.sideRequired && !draft.findings[def.key].side);
+    if (missingSide.length) {
+      Utils.toast('Indique o lado/padrão de: ' + missingSide.map((d) => d.label).join('; ') + '.', 'error');
+      return;
+    }
     const hasPhotos = Object.keys(draft.photos).length > 0;
     if (!findings.length && !hasPhotos && !draft.notes.trim()) {
       const ok = await Utils.confirmDialog('Nenhum achado marcado. Salvar como "postura sem alterações"?');
@@ -506,3 +510,6 @@ function posBindEvents(container) {
 }
 
 window.PosturalView = { renderHtml: posRenderHtml, bindEvents: posBindEvents, compressPhoto, openPhotoAnalysis };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['postural.js'] = 'v1.13.1';

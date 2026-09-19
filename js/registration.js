@@ -213,3 +213,6 @@ function regBindEvents(container) {
 }
 
 window.RegistrationView = { renderHtml: regRenderHtml, bindEvents: regBindEvents };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['registration.js'] = 'v1.13.1';

@@ -138,3 +138,6 @@ function adminBindEvents(container) {
 
 window.AdminView = { renderHtml: adminRenderHtml, bindEvents: adminBindEvents, afterRender: adminAfterRender };
 window.invalidateAdminData = invalidateAdminData;
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.13.1';

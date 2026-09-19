@@ -29,3 +29,6 @@ async function updateStudent(record) {
 }
 
 window.StudentsData = { listStudents, createStudent, updateStudent };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['students.js'] = 'v1.13.1';

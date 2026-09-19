@@ -31,28 +31,39 @@ function ckOptionLabel(key, value) {
   return q && value != null ? q.options[value - 1] : '—';
 }
 
+// Limites do semáforo: vêm de Configurações (AppState.settings) com estes padrões.
+function ckCfg() {
+  const s = (typeof AppState !== 'undefined' && AppState.settings) || {};
+  const n = (v, d) => (typeof v === 'number' ? v : d);
+  return {
+    painRed: n(s.ckPainRed, 4), painAmber: n(s.ckPainAmber, 3), lowScore: n(s.ckLowScore, 2),
+    readinessRed: n(s.ckReadinessRed, 30), readinessAmber: n(s.ckReadinessAmber, 50),
+  };
+}
+
 // Índice de prontidão 0–100: média de sono, disposição e "ausência de dor" (5 − dor).
 // Devolve também o semáforo e a sugestão de ajuste da sessão.
-function evaluateCheckin(c) {
+function evaluateCheckin(c, cfg = ckCfg()) {
   const readiness = Math.round((((c.sono - 1) + (c.disposicao - 1) + (5 - c.dor)) / 12) * 100);
+  const painWord = ckOptionLabel('dor', c.dor).toLowerCase();
 
   if (c.alertSign) {
     return { level: 'vermelho', readiness, advice: 'Sinal de alerta marcado (ex.: dor no peito, tontura, falta de ar incomum). Não inicie o treino; oriente avaliação médica antes de continuar.' };
   }
-  if (c.dor >= 4) {
-    return { level: 'vermelho', readiness, advice: 'Dor forte hoje. Faça sessão leve (mobilidade e equilíbrio, Borg até 4), poupe a região dolorida e evite esforço máximo. Se a dor for nova ou persistente, sugira avaliação de um profissional de saúde.' };
+  if (c.dor >= cfg.painRed) {
+    return { level: 'vermelho', readiness, advice: `Dor ${painWord} hoje. Faça sessão leve (mobilidade e equilíbrio, Borg até 4), poupe a região dolorida e evite esforço máximo. Se a dor for nova ou persistente, sugira avaliação de um profissional de saúde.` };
   }
-  if (c.sono <= 2 && c.disposicao <= 2) {
+  if (c.sono <= cfg.lowScore && c.disposicao <= cfg.lowScore) {
     return { level: 'vermelho', readiness, advice: 'Sono ruim e pouca disposição juntos. Sessão leve (Borg até 4), sem esforço máximo e sem levar séries à falha.' };
   }
-  if (readiness < 30) {
+  if (readiness < cfg.readinessRed) {
     return { level: 'vermelho', readiness, advice: 'Prontidão muito baixa hoje. Sessão leve (Borg até 4) e sem esforço máximo.' };
   }
 
   const parts = [];
-  if (c.dor === 3) parts.push('dor moderada: poupe a região e observe a dor durante a execução');
-  if (c.sono <= 2 || c.disposicao <= 2) parts.push('sono ou disposição baixos: reduza o volume (ex.: uma série a menos por exercício) e limite o Borg a 6');
-  if (!parts.length && readiness < 50) parts.push('prontidão abaixo do habitual: reduza um pouco o volume e limite o Borg a 6');
+  if (c.dor >= cfg.painAmber) parts.push(`dor ${painWord}: poupe a região e observe a dor durante a execução`);
+  if (c.sono <= cfg.lowScore || c.disposicao <= cfg.lowScore) parts.push('sono ou disposição baixos: reduza o volume (ex.: uma série a menos por exercício) e limite o Borg a 6');
+  if (!parts.length && readiness < cfg.readinessAmber) parts.push('prontidão abaixo do habitual: reduza um pouco o volume e limite o Borg a 6');
   if (parts.length) {
     return { level: 'amarelo', readiness, advice: 'Atenção — ' + parts.join('; ') + '.' };
   }
@@ -309,3 +320,6 @@ window.CheckinView = {
   dashboardBind: checkinDashboardBind,
 };
 window.getCheckin = getCheckin;
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['checkin.js'] = 'v1.13.1';

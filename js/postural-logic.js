@@ -367,3 +367,6 @@ window.PosturalLogic = {
   normalizeName, classifyExercise, coverageFromTemplates, crossPosture, compareEvaluations,
   inclinationFromHorizontal, inclinationFromVertical, angleAtVertex, fitSize,
 };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['postural-logic.js'] = 'v1.13.1';

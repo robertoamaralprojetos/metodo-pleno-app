@@ -334,3 +334,6 @@ function peAfterRender(container) {
 }
 
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.13.1';

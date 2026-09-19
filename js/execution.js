@@ -155,6 +155,7 @@ function execRenderHtml() {
   const elasticColors = elasticColorList();
 
   return `
+  ${MonitorView.bannerHtml()}
   ${CheckinView.cardHtml(execDate)}
   <div class="mp-card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -397,3 +398,6 @@ function execBindEvents(container) {
 }
 
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.13.1';

@@ -16,6 +16,21 @@ const DEFAULT_SETTINGS = {
   lastBackupAt: null,
   pinHash: null,
   pinSalt: null,
+  // Monitoramento de carga (platô, sobrecarga, deload) e semáforo do check-in — ver monitor.js
+  monitorPlateauWeeks: 4,
+  monitorPlateauMinExposures: 3,
+  monitorPseDrop: 1,
+  monitorPseRise: 2,
+  monitorVolumeJumpPct: 20,
+  monitorReadinessDrop: 20,
+  monitorDeloadEveryWeeks: 6,
+  monitorDeloadVolumeCutPct: 30,
+  monitorDeloadDays: 7,
+  ckPainRed: 4,
+  ckPainAmber: 3,
+  ckLowScore: 2,
+  ckReadinessRed: 30,
+  ckReadinessAmber: 50,
 };
 
 async function loadSettings() {
@@ -201,6 +216,8 @@ function settingsRenderHtml() {
     </div>
   </div>
 
+  ${MonitorView.settingsHtml(s)}
+
   ${settingsPinSectionHtml(s)}
   `;
 }
@@ -230,6 +247,7 @@ function settingsBindEvents(container) {
     render();
   });
 
+  MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
 }
 
@@ -238,3 +256,6 @@ window.loadSettings = loadSettings;
 window.saveSettingsPatch = saveSettingsPatch;
 window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
+
+// Carimbo de versão (verificação de integridade do app — ver app.js)
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.13.1';
