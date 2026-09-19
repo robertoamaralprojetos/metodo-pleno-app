@@ -178,7 +178,7 @@ function planRenderHtml() {
   <div class="mp-card">
     <h3>Planejar aula com antecedência</h3>
     <div class="mp-sub">Monte a sequência de exercícios antes da aula. Na hora de dar a aula, é só abrir "Registro de Treino" e marcar cada item conforme for executando — sem digitar tudo de novo.</div>
-    <div style="margin:-4px 0 14px;"><span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span></div>
+    <div style="margin:-4px 0 14px;"><span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span> ${PeriodizationView.phasePillHtml()}</div>
     <div class="mp-form-row mp-row3" style="margin-bottom:10px;">
       <div class="mp-field"><label>Data da aula</label><input type="date" id="mp-plan-date" value="${planDate}"></div>
       <div class="mp-field"><label>Estágio de treino do aluno</label>

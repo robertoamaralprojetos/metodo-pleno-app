@@ -2,7 +2,7 @@
 // Um aluno "ativo" por vez (igual ao protótipo), dados carregados em memória
 // e persistidos no IndexedDB a cada alteração.
 
-const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [], oneRmTests: [], adjustments: [], checkins: [] };
+const EMPTY_STUDENT_DATA = { sessions: [], plans: [], evaluations: [], payments: [], cancellations: [], physicalEvaluations: [], dailyMeta: [], workoutTemplates: [], oneRmTests: [], adjustments: [], checkins: [], periodizations: [] };
 
 const AppState = {
   students: [],
@@ -22,7 +22,7 @@ const AppState = {
 };
 
 async function loadStudentData(id) {
-  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins] = await Promise.all([
+  const [sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations] = await Promise.all([
     DB.getAllByIndex(DB.STORES.sessions, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.lessonPlans, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.functionalEvaluations, 'byStudent', id),
@@ -34,8 +34,9 @@ async function loadStudentData(id) {
     DB.getAllByIndex(DB.STORES.oneRepMaxTests, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.trainingAdjustments, 'byStudent', id),
     DB.getAllByIndex(DB.STORES.checkins, 'byStudent', id),
+    DB.getAllByIndex(DB.STORES.periodizations, 'byStudent', id),
   ]);
-  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins };
+  return { sessions, plans, evaluations, payments, cancellations, physicalEvaluations, dailyMeta, workoutTemplates, oneRmTests, adjustments, checkins, periodizations };
 }
 
 async function stateInit() {

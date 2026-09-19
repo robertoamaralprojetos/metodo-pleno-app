@@ -50,7 +50,10 @@ function oneRmSectionHtml(fichaLetter, student, templateItems) {
     return `<div class="mp-sub" style="margin-top:14px;">Adicione exercícios de força à Ficha ${fichaLetter} acima para poder testar o 1RM.</div>`;
   }
 
-  const guidance = (student?.stage && student?.objective) ? oneRmGuidance(student.stage, student.objective) : null;
+  const eff = PeriodizationLogic.effectiveGuidance(student);
+  const guidance = eff ? eff.guidance : null;
+  const ageWarning = PeriodizationLogic.oneRmAgeWarning(student);
+  const ageWarningHtml = ageWarning ? `<div class="mp-inline-alert mp-inline-alert-alto" style="margin:10px 0 0;">${Utils.escapeHtml(ageWarning)}</div>` : '';
   const guidanceMissing = !guidance ? `
     <div class="mp-inline-alert mp-inline-alert-moderado" style="margin:10px 0 0;">
       Defina o Estágio de treino e o Objetivo do aluno (no topo da tela) para receber a sugestão automática de carga/série/repetição a partir do 1RM.
@@ -75,7 +78,7 @@ function oneRmSectionHtml(fichaLetter, student, templateItems) {
       </div>
       ${suggestion ? `
       <div class="mp-inline-alert mp-inline-alert-leve" style="margin-top:10px;">
-        <strong>Sugestão — ${stageLabel(student.stage)} · ${objectiveLabel(student.objective)} (${Utils.escapeHtml(guidance.metodologia)})</strong><br>
+        <strong>Sugestão — ${Utils.escapeHtml(eff.label)}</strong><br>
         Séries ${formatRangeLabel(guidance.series, '')} · Reps ${formatRangeLabel(guidance.reps, '')} ·
         Carga ${suggestion.loadMin}–${suggestion.loadMax} kg (${formatRangeLabel(guidance.pct, '%')} de 1RM) ·
         Descanso ${Utils.formatRestLabel(guidance.restSeconds[0])}${guidance.restSeconds[0] !== guidance.restSeconds[1] ? '–' + Utils.formatRestLabel(guidance.restSeconds[1]) : ''}
@@ -86,7 +89,7 @@ function oneRmSectionHtml(fichaLetter, student, templateItems) {
     </div>`;
   }).join('');
 
-  return `${guidanceMissing}<div style="margin-top:14px;display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
+  return `${ageWarningHtml}${guidanceMissing}<div style="margin-top:14px;display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
 }
 
 function bindOneRmEvents(container, fichaLetter) {
@@ -118,9 +121,10 @@ function bindOneRmEvents(container, fichaLetter) {
       const template = ensureTemplate(fichaLetter);
       const item = template.items.find((it) => it.id === itemId);
       const student = currentStudent();
-      if (!item || !student?.stage || !student?.objective) return;
+      if (!item) return;
       const last = latestOneRm(fichaLetter, item.exerciseName);
-      const guidance = oneRmGuidance(student.stage, student.objective);
+      const eff = PeriodizationLogic.effectiveGuidance(student);
+      const guidance = eff ? eff.guidance : null;
       if (!last || !guidance) return;
       const suggestion = oneRmSuggestedLoad(last.cargaTestada, guidance);
       item.series = Math.round((guidance.series[0] + guidance.series[1]) / 2);

@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.10.0';
+const APP_VERSION = 'v1.11.0';
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
@@ -8,6 +8,7 @@ const HELP_TOPICS = [
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
+  { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
   { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas, check-ins e consistência de treino.' },
@@ -83,6 +84,7 @@ function render() {
       if (AppState.activeTab === 'cadastro') { RegistrationView.bindEvents(contentEl); }
       if (AppState.activeTab === 'pagamento') { PaymentsView.bindEvents(contentEl); }
       if (AppState.activeTab === 'anamnese') { AnamnesisView.bindEvents(contentEl); }
+      if (AppState.activeTab === 'periodizacao') { PeriodizationView.bindEvents(contentEl); }
       if (AppState.activeTab === 'plano') { PlanningView.bindEvents(contentEl); }
       if (AppState.activeTab === 'registro') { ExecutionView.bindEvents(contentEl); }
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
@@ -147,6 +149,7 @@ function renderHeader() {
             <option value="cadastro" ${AppState.activeTab === 'cadastro' ? 'selected' : ''}>Cadastro do Aluno</option>
             <option value="pagamento" ${AppState.activeTab === 'pagamento' ? 'selected' : ''}>Controle de Pagamento</option>
             <option value="anamnese" ${AppState.activeTab === 'anamnese' ? 'selected' : ''}>Anamnese</option>
+            <option value="periodizacao" ${AppState.activeTab === 'periodizacao' ? 'selected' : ''}>Periodização</option>
             <option value="plano" ${AppState.activeTab === 'plano' ? 'selected' : ''}>Planejar Aula</option>
             <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${countTrainingDays(AppState.data.sessions)})</option>
             <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
@@ -184,6 +187,7 @@ function renderTabContent() {
   if (AppState.activeTab === 'cadastro') return RegistrationView.renderHtml();
   if (AppState.activeTab === 'pagamento') return PaymentsView.renderHtml();
   if (AppState.activeTab === 'anamnese') return AnamnesisView.renderHtml();
+  if (AppState.activeTab === 'periodizacao') return PeriodizationView.renderHtml();
   if (AppState.activeTab === 'plano') return PlanningView.renderHtml();
   if (AppState.activeTab === 'registro') return ExecutionView.renderHtml();
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();

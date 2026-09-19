@@ -166,6 +166,7 @@ function execRenderHtml() {
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
       <span class="mp-pill mp-pill-moderado">Estágio de treino: ${Utils.escapeHtml(stageLabel(student?.stage))}</span>
       <span class="mp-pill mp-pill-moderado">Atividade: ${Utils.escapeHtml(activityTypeLabel(student))}</span>
+      ${PeriodizationView.phasePillHtml()}
     </div>
     <div class="mp-field" style="margin-top:14px;">
       <label>Como classificar a Escala de Borg CR-10 hoje?</label>
