@@ -65,6 +65,8 @@ function dashRenderHtml() {
     <div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Ainda não há exercícios com Borg individual. Registre o Borg "Por exercício" ao concluir os exercícios para acompanhar cada um aqui.</div>`}
   </div>
 
+  ${CheckinView.dashboardHtml()}
+
   <div class="mp-grid2">
     <div class="mp-card">
       <h3>Borg médio por período</h3>
@@ -195,6 +197,7 @@ function dashAfterRender(container) {
   drawBorgPerTreinoChart(container, dailyBorg);
   const exBorgSelect = container.querySelector('#mp-ex-borg-select');
   if (exBorgSelect) drawBorgPerExerciseChart(container, exBorgSelect.value);
+  CheckinView.dashboardDraw(container);
   drawBorgChart(container, dailyBorg);
   drawAulasDadasChart(container);
   drawTrilha(container);
@@ -205,6 +208,7 @@ function dashBindEvents(container) {
   if (exSelect) exSelect.addEventListener('change', () => drawLoadChart(container, exSelect.value));
   const exBorgSelect = container.querySelector('#mp-ex-borg-select');
   if (exBorgSelect) exBorgSelect.addEventListener('change', () => drawBorgPerExerciseChart(container, exBorgSelect.value));
+  CheckinView.dashboardBind(container);
 }
 
 window.DashboardView = { renderHtml: dashRenderHtml, bindEvents: dashBindEvents, afterRender: dashAfterRender };

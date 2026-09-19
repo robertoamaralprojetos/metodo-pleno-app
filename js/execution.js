@@ -155,6 +155,7 @@ function execRenderHtml() {
   const elasticColors = elasticColorList();
 
   return `
+  ${CheckinView.cardHtml(execDate)}
   <div class="mp-card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <h3 style="margin-bottom:0;">Executar plano da aula</h3>
@@ -228,6 +229,7 @@ function execRenderHtml() {
 }
 
 function execBindEvents(container) {
+  CheckinView.bindEvents(container, AppState.execDate);
   const execDateInput = container.querySelector('#mp-exec-date');
   if (execDateInput) execDateInput.addEventListener('change', () => { AppState.execDate = execDateInput.value; render(); });
 

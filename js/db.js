@@ -2,7 +2,7 @@
 // Banco 100% local no dispositivo. Nenhum dado sai do navegador.
 
 const DB_NAME = 'metodoPlenoDB';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 const STORES = {
   students: 'students',
@@ -17,6 +17,9 @@ const STORES = {
   workoutTemplates: 'workoutTemplates',
   oneRepMaxTests: 'oneRepMaxTests',
   trainingAdjustments: 'trainingAdjustments',
+  checkins: 'checkins',
+  posturalEvaluations: 'posturalEvaluations',
+  periodizations: 'periodizations',
 };
 
 let dbPromise = null;
@@ -109,10 +112,43 @@ function openDB() {
         s.createIndex('byStudent', 'studentId', { unique: false });
         s.createIndex('byStudentDate', ['studentId', 'data'], { unique: false });
       }
+
+      // v7 — Check-in pré-aula (sono, dor, disposição): um registro por aluno+data
+      // (id determinístico: studentId__data), refeito se o personal editar no mesmo dia.
+      if (!db.objectStoreNames.contains(STORES.checkins)) {
+        const s = db.createObjectStore(STORES.checkins, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      // v7 — Avaliação Postural (etapa futura): criada já agora para evitar um novo upgrade
+      // do banco depois. Fica vazia até a aba ser construída.
+      if (!db.objectStoreNames.contains(STORES.posturalEvaluations)) {
+        const s = db.createObjectStore(STORES.posturalEvaluations, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+        s.createIndex('byStudentDate', ['studentId', 'date'], { unique: false });
+      }
+
+      // v7 — Periodização sugerida/aceita pelo personal (etapa futura), idem acima.
+      if (!db.objectStoreNames.contains(STORES.periodizations)) {
+        const s = db.createObjectStore(STORES.periodizations, { keyPath: 'id' });
+        s.createIndex('byStudent', 'studentId', { unique: false });
+      }
     };
 
-    req.onsuccess = (event) => resolve(event.target.result);
+    req.onsuccess = (event) => {
+      const db = event.target.result;
+      // Se uma versão futura do app precisar atualizar o banco enquanto esta aba estiver
+      // aberta, libera a conexão em vez de travar o upgrade.
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      resolve(db);
+    };
     req.onerror = (event) => reject(event.target.error);
+    // Upgrade travado por outra aba/janela do app ainda aberta com a versão antiga.
+    req.onblocked = () => {
+      const box = document.getElementById('mp-loading');
+      if (box) box.textContent = 'Atualização pendente: feche as outras abas ou janelas do Método Pleno e recarregue esta página.';
+    };
   });
   return dbPromise;
 }

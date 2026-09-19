@@ -20,6 +20,27 @@ const PE_METRICS = [
   ...CIRCUMFERENCE_FIELDS.map((f) => ({ key: 'circ_' + f.key, label: f.label + ' (cm)', getValue: (r) => r.circumferences?.[f.key] })),
 ];
 
+// Tipos de trabalho que o aluno precisa priorizar (preenchido pelo personal na avaliação).
+// As chaves alimentam as sugestões do app nas próximas etapas; o texto livre complementa.
+const WORK_NEEDS = [
+  { key: 'forca', label: 'Força muscular' },
+  { key: 'hipertrofia', label: 'Massa muscular (hipertrofia)' },
+  { key: 'potencia', label: 'Potência muscular' },
+  { key: 'equilibrio', label: 'Equilíbrio e prevenção de quedas' },
+  { key: 'mobilidade', label: 'Mobilidade / flexibilidade' },
+  { key: 'postura', label: 'Postura' },
+  { key: 'core', label: 'Estabilidade do core' },
+  { key: 'aerobico', label: 'Condicionamento aeróbico' },
+  { key: 'composicao', label: 'Composição corporal' },
+  { key: 'coordenacao', label: 'Coordenação / funcional' },
+  { key: 'saudeOssea', label: 'Saúde óssea (estímulo de carga)' },
+];
+window.WORK_NEEDS = WORK_NEEDS;
+
+function workNeedLabels(keys) {
+  return (keys || []).map((k) => WORK_NEEDS.find((n) => n.key === k)?.label).filter(Boolean);
+}
+
 function computeImcResult(weight, height, age) {
   if (!weight || !height) return null;
   const heightM = height / 100;
@@ -52,6 +73,7 @@ function peRenderHtml() {
         <td>${imcResult ? imcResult.imc : '—'}</td>
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
         <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}</td>
+        <td style="max-width:230px;font-size:12.5px;">${workNeedLabels(rec.workNeeds).length ? Utils.escapeHtml(workNeedLabels(rec.workNeeds).join(', ')) : '—'}${rec.workNeedsNotes ? `<div style="color:var(--texto-suave);margin-top:2px;">${Utils.escapeHtml(rec.workNeedsNotes)}</div>` : ''}</td>
         <td>
           <button class="mp-btn mp-btn-ghost mp-btn-sm" data-print-eval="${rec.id}" type="button">🖨 Comparar c/ anterior</button>
           <button class="mp-btn-danger" data-del-eval="${rec.id}" type="button">Excluir</button>
@@ -94,6 +116,16 @@ function peRenderHtml() {
         `).join('')}
       </div>
 
+      <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Trabalho necessário</h4>
+      <div class="mp-sub" style="margin:0 0 8px;">Marque o que este aluno precisa priorizar no treino — isso alimenta as sugestões do app — e detalhe abaixo, se quiser.</div>
+      <div class="mp-yesno" id="pe-work-needs">
+        ${WORK_NEEDS.map((n) => `<button type="button" class="mp-yesno-btn" style="min-width:0;flex:0 1 auto;" data-work="${n.key}">${Utils.escapeHtml(n.label)}</button>`).join('')}
+      </div>
+      <div class="mp-field" style="margin-top:10px;">
+        <label>Observações sobre o trabalho necessário</label>
+        <textarea id="pe-work-notes" placeholder="Ex: reforçar glúteo médio e extensores da coluna; evitar impacto no joelho direito."></textarea>
+      </div>
+
       <div class="mp-form-actions" style="margin-top:14px;">
         <button type="button" id="pe-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar avaliação</button>
       </div>
@@ -122,7 +154,7 @@ function peRenderHtml() {
     <h3>Histórico de avaliações</h3>
     <div class="mp-table-scroll">
     <table class="mp-table">
-      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th>Trabalho necessário</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -161,6 +193,8 @@ function pePrintHtml(student, current, previous) {
       <thead><tr><th>Medida</th><th>${previous ? 'Anterior' : ''}</th><th>Atual</th><th>${previous ? 'Diferença' : ''}</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
+    ${workNeedLabels(current.workNeeds).length || current.workNeedsNotes ? `
+    <div style="margin-top:14px;"><strong>Trabalho necessário:</strong> ${Utils.escapeHtml(workNeedLabels(current.workNeeds).join(', ') || '—')}${current.workNeedsNotes ? `<br><span style="color:#555;">${Utils.escapeHtml(current.workNeedsNotes)}</span>` : ''}</div>` : ''}
   `;
 }
 
@@ -216,6 +250,15 @@ function peBindEvents(container) {
   container.querySelector('#pe-height')?.addEventListener('input', recomputePreview);
   recomputePreview();
 
+  const workNeeds = new Set();
+  container.querySelectorAll('[data-work]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.work;
+      if (workNeeds.has(key)) workNeeds.delete(key); else workNeeds.add(key);
+      btn.classList.toggle('mp-yesno-btn--active-yes', workNeeds.has(key));
+    });
+  });
+
   container.querySelector('#pe-save')?.addEventListener('click', async () => {
     const weight = Number(container.querySelector('#pe-weight').value) || null;
     const height = Number(container.querySelector('#pe-height').value) || null;
@@ -236,6 +279,8 @@ function peBindEvents(container) {
       weight,
       height,
       circumferences,
+      workNeeds: Array.from(workNeeds),
+      workNeedsNotes: container.querySelector('#pe-work-notes').value.trim(),
       createdAt: new Date().toISOString(),
     };
     BIOIMPEDANCE_FIELDS.forEach((f) => {
