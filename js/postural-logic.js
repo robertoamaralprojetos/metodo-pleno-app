@@ -8,6 +8,10 @@
 
 const SEVERITY_LABELS = { 1: 'Leve', 2: 'Moderada', 3: 'Acentuada' };
 const SIDE_LABELS = { D: 'direito', E: 'esquerdo', B: 'bilateral' };
+// Achados com lado "genérico" (side: true) usam Direito/Esquerdo/Bilateral. Os que dependem de
+// um SENTIDO (qual lado está mais alto, para que lado a curva tem convexidade) trazem `sides` próprio
+// e `sideRequired: true` — sem isso o dado ficaria ambíguo.
+const GENERIC_SIDES = [['D', 'Direito'], ['E', 'Esquerdo'], ['B', 'Bilateral']];
 
 const GROUP_LABELS = {
   flex_prof_pescoco: 'Flexores profundos do pescoço',
@@ -37,11 +41,14 @@ const GROUP_LABELS = {
 const POSTURE_FINDINGS = [
   { key: 'cabeca_anteriorizada', segment: 'Cabeça e pescoço', label: 'Cabeça anteriorizada', view: 'lateral',
     s: [['flex_prof_pescoco', 2], ['trap_med_inf', 1], ['romboides', 1], ['ext_toracicos', 1]], m: [['peitoral', 1], ['trap_sup', 1]] },
-  { key: 'cabeca_inclinada', segment: 'Cabeça e pescoço', label: 'Inclinação lateral da cabeça', view: 'frontal', side: true,
+  { key: 'cabeca_inclinada', segment: 'Cabeça e pescoço', label: 'Inclinação lateral da cabeça', view: 'frontal',
+    sideLabel: 'Inclinada para…', sideRequired: true, sides: [['D', 'Inclinada para a direita'], ['E', 'Inclinada para a esquerda']],
     s: [], m: [['trap_sup', 1]], alertAt3: 'Inclinação lateral acentuada da cabeça: investigue a causa (visual, cervical) e considere encaminhar se persistir.' },
   { key: 'ombro_protuso', segment: 'Ombros e escápulas', label: 'Ombros protusos (arredondados)', view: 'lateral',
     s: [['trap_med_inf', 2], ['romboides', 2], ['delt_post', 1], ['rot_ext_ombro', 1]], m: [['peitoral', 2]] },
-  { key: 'ombro_assimetrico', segment: 'Ombros e escápulas', label: 'Assimetria de altura dos ombros', view: 'frontal', side: true,
+  { key: 'ombro_assimetrico', segment: 'Ombros e escápulas', label: 'Assimetria de altura dos ombros', view: 'frontal',
+    sideLabel: 'Qual ombro está mais elevado?', sideRequired: true,
+    sides: [['D', 'Ombro direito mais elevado (esquerdo mais baixo)'], ['E', 'Ombro esquerdo mais elevado (direito mais baixo)']],
     s: [['trap_med_inf', 1]], m: [['trap_sup', 1]] },
   { key: 'escapula_alada', segment: 'Ombros e escápulas', label: 'Escápulas aladas', view: 'posterior', side: true,
     s: [['serratil', 2], ['trap_med_inf', 1]], m: [], alertAt2: 'Escápula alada moderada/acentuada, sobretudo unilateral: considere encaminhar para avaliação clínica.' },
@@ -52,12 +59,24 @@ const POSTURE_FINDINGS = [
   { key: 'retificacao_lombar', segment: 'Coluna', label: 'Retificação lombar', view: 'lateral', spine: true,
     s: [['ext_lombares', 2]], m: [['isquios', 2]] },
   { key: 'escoliose', segment: 'Coluna', label: 'Suspeita de desvio lateral da coluna (escoliose)', view: 'posterior', structural: true, spine: true,
+    sideLabel: 'Padrão da curva (convexidade)', sideRequired: true,
+    // Convenção clínica: a curva é nomeada pelo lado da CONVEXIDADE.
+    sides: [
+      ['tor_cvD', 'Torácica — convexidade à direita'],
+      ['tor_cvE', 'Torácica — convexidade à esquerda'],
+      ['lomb_cvD', 'Lombar — convexidade à direita'],
+      ['lomb_cvE', 'Lombar — convexidade à esquerda'],
+      ['S_tcvD', 'Em S — torácica com convexidade à direita e lombar com convexidade à esquerda'],
+      ['S_tcvE', 'Em S — torácica com convexidade à esquerda e lombar com convexidade à direita'],
+    ],
     s: [], m: [], alertAny: 'Suspeita de escoliose: encaminhe para avaliação (ortopedia/fisioterapia). O treino não corrige escoliose estrutural — mantenha o trabalho bilateral e equilibrado e evite ênfases unilaterais sem orientação.' },
   { key: 'anteversao', segment: 'Pelve', label: 'Anteversão pélvica', view: 'lateral',
     s: [['gluteo_max', 2], ['core_abd', 2], ['isquios', 1]], m: [['flex_quadril', 2]] },
   { key: 'retroversao', segment: 'Pelve', label: 'Retroversão pélvica', view: 'lateral',
     s: [['ext_lombares', 1]], m: [['isquios', 2]] },
-  { key: 'pelve_assimetrica', segment: 'Pelve', label: 'Assimetria pélvica (inclinação lateral)', view: 'frontal', side: true,
+  { key: 'pelve_assimetrica', segment: 'Pelve', label: 'Assimetria pélvica (inclinação lateral)', view: 'frontal',
+    sideLabel: 'Qual crista ilíaca está mais elevada?', sideRequired: true,
+    sides: [['D', 'Crista ilíaca direita mais elevada (esquerda mais baixa)'], ['E', 'Crista ilíaca esquerda mais elevada (direita mais baixa)']],
     s: [['gluteo_med', 2], ['core_abd', 1]], m: [], alertAt3: 'Assimetria pélvica acentuada: considere avaliar a diferença de comprimento dos membros inferiores e encaminhar.' },
   { key: 'joelho_valgo', segment: 'Joelhos', label: 'Valgo de joelho', view: 'frontal', side: true,
     s: [['gluteo_med', 2], ['rot_ext_quadril', 2], ['gluteo_max', 1]], m: [['adutores', 1], ['tfl', 1]] },
@@ -71,6 +90,34 @@ const POSTURE_FINDINGS = [
     s: [['intrinsecos_pe', 1]], m: [['panturrilha', 2]] },
 ];
 const FINDING_BY_KEY = Object.fromEntries(POSTURE_FINDINGS.map((f) => [f.key, f]));
+
+// Códigos gravados numa versão anterior (v1.12.1) descreviam a CONCAVIDADE. Ao ler, convertem-se
+// para o equivalente em convexidade (o lado oposto), sem alterar o significado clínico do registro.
+const LEGACY_SIDE_MAP = {
+  escoliose: { tor_D: 'tor_cvE', tor_E: 'tor_cvD', lomb_D: 'lomb_cvE', lomb_E: 'lomb_cvD', S_tD: 'S_tcvE', S_tE: 'S_tcvD' },
+};
+
+// Opções de lado/padrão de um achado: as específicas (sides), as genéricas (side: true) ou nenhuma.
+function sideOptionsFor(def) {
+  if (!def) return null;
+  if (def.sides) return def.sides;
+  return def.side ? GENERIC_SIDES : null;
+}
+function sideOptionText(def, code) {
+  if (!code) return '';
+  const norm = (LEGACY_SIDE_MAP[def.key] || {})[code] || code;
+  const hit = (sideOptionsFor(def) || []).find(([c]) => c === norm);
+  return hit ? hit[1] : '';   // códigos antigos que já não existem viram texto vazio
+}
+// "Assimetria de altura dos ombros — Ombro direito mais elevado (esquerdo mais baixo)"
+// ou, nos achados de lado genérico, "Valgo de joelho (direito)".
+function describeFinding(f) {
+  const def = FINDING_BY_KEY[f.key];
+  if (!def) return '';
+  const opt = sideOptionText(def, f.side);
+  if (!opt) return def.label;
+  return def.sides ? `${def.label} — ${opt}` : `${def.label} (${SIDE_LABELS[f.side] || opt.toLowerCase()})`;
+}
 
 // Sugestões de exercício por grupo a fortalecer. Cada nome PRECISA ser reconhecido pelo
 // classificador abaixo como pertencente ao grupo (há teste automático disso).
@@ -183,18 +230,22 @@ function crossPosture({ evaluation, student, physicalEvaluation, templates, guid
   const cautions = [];
   const cues = [];
   const structural = [];
+  let asym = false;
 
   findings.forEach((f) => {
     const def = FINDING_BY_KEY[f.key];
-    const tag = `${def.label}${f.side && SIDE_LABELS[f.side] ? ' (' + SIDE_LABELS[f.side] + ')' : ''} — ${SEVERITY_LABELS[f.severity].toLowerCase()}`;
+    const tag = `${describeFinding(f)} — ${SEVERITY_LABELS[f.severity].toLowerCase()}`;
     (def.s || []).forEach(([g, w]) => { score.s[g] = (score.s[g] || 0) + f.severity * w; (why.s[g] = why.s[g] || []).push(tag); });
     (def.m || []).forEach(([g, w]) => { score.m[g] = (score.m[g] || 0) + f.severity * w; (why.m[g] = why.m[g] || []).push(tag); });
     if (def.alertAny) alerts.push(def.alertAny);
     if (def.alertAt2 && f.severity >= 2) alerts.push(def.alertAt2);
     if (def.alertAt3 && f.severity >= 3) alerts.push(def.alertAt3);
     if (def.cue) cues.push(def.cue);
-    if (def.structural) structural.push(def.label);
+    if (def.structural) structural.push(describeFinding(f));
+    if (f.key === 'ombro_assimetrico' || f.key === 'pelve_assimetrica') asym = true;
   });
+
+  if (asym) cues.push('Assimetrias laterais (ombros/pelve): inclua exercícios unilaterais e compare força e amplitude entre os lados antes de progredir cargas.');
 
   // Cuidados com a coluna (osteoporose/osteopenia na Anamnese; hipercifose acentuada em 55+)
   const spineFindings = findings.filter((f) => FINDING_BY_KEY[f.key].spine);
@@ -267,19 +318,22 @@ function crossPosture({ evaluation, student, physicalEvaluation, templates, guid
 
 // Comparação entre duas avaliações posturais (variação por achado)
 function compareEvaluations(prev, cur) {
-  const map = (ev) => Object.fromEntries((ev?.findings || []).map((f) => [f.key, f.severity]));
+  const map = (ev) => Object.fromEntries((ev?.findings || []).map((f) => [f.key, f]));
   const a = map(prev);
   const b = map(cur);
   const keys = Array.from(new Set([...Object.keys(a), ...Object.keys(b)])).filter((k) => FINDING_BY_KEY[k]);
   return keys.map((key) => {
-    const p = a[key] || 0;
-    const c = b[key] || 0;
+    const p = a[key] ? a[key].severity : 0;
+    const c = b[key] ? b[key].severity : 0;
+    const prevDetail = a[key] ? sideOptionText(FINDING_BY_KEY[key], a[key].side) : '';
+    const curDetail = b[key] ? sideOptionText(FINDING_BY_KEY[key], b[key].side) : '';
     let status = 'igual';
     if (!p && c) status = 'novo';
     else if (p && !c) status = 'resolvido';
     else if (c < p) status = 'melhorou';
     else if (c > p) status = 'piorou';
-    return { key, label: FINDING_BY_KEY[key].label, prev: p, cur: c, status };
+    else if (prevDetail && curDetail && prevDetail !== curDetail) status = 'mudou';   // mesma gravidade, lado/padrão diferente
+    return { key, label: FINDING_BY_KEY[key].label, prev: p, cur: c, prevDetail, curDetail, status };
   });
 }
 
@@ -309,7 +363,7 @@ function fitSize(w, h, maxSide) {
 }
 
 window.PosturalLogic = {
-  POSTURE_FINDINGS, FINDING_BY_KEY, GROUP_LABELS, SEVERITY_LABELS, SIDE_LABELS, EXERCISE_CATALOG, MOBILITY_CATALOG,
+  POSTURE_FINDINGS, FINDING_BY_KEY, GROUP_LABELS, sideOptionsFor, sideOptionText, describeFinding, SEVERITY_LABELS, SIDE_LABELS, EXERCISE_CATALOG, MOBILITY_CATALOG,
   normalizeName, classifyExercise, coverageFromTemplates, crossPosture, compareEvaluations,
   inclinationFromHorizontal, inclinationFromVertical, angleAtVertex, fitSize,
 };
