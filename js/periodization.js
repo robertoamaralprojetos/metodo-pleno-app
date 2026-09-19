@@ -320,10 +320,11 @@ function perPill(text, cls = 'mp-pill-neutro') { return `<span class="mp-pill ${
 
 function perPhaseStatusText(rec, today) {
   const ph = rec.phases[rec.currentIndex];
-  const w = weeksSince(rec.phaseStartDate, today);
+  const w = weeksSince(rec.phaseStartDate, today);   // semana corrente (1 = primeira semana)
+  const done = w - 1;                                  // semanas já completas
   if (ROTEIRO[rec.objective]?.cyclic) return `Semana ${w} · ciclo contínuo (reavaliar a cada 3 meses)`;
-  if (w < ph.weeks[0]) return `Semana ${w} · janela recomendada da fase: ${fmtRange(ph.weeks)} semanas`;
-  if (w < ph.weeks[1]) return `Semana ${w} · janela mínima cumprida — avalie o avanço para a próxima fase`;
+  if (done < ph.weeks[0]) return `Semana ${w} · janela recomendada da fase: ${fmtRange(ph.weeks)} semanas`;
+  if (done < ph.weeks[1]) return `Semana ${w} · janela mínima cumprida — avalie o avanço para a próxima fase`;
   return `Semana ${w} · prazo máximo da fase atingido — recomenda-se avançar ou reavaliar`;
 }
 
