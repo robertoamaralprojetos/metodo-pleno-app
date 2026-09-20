@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.13.1';
+const APP_VERSION = 'v1.14.1';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -21,6 +21,8 @@ const MODULE_MIN = {
   'postural.js': 'v1.13.1',
   'monitor-logic.js': 'v1.13.1',
   'monitor.js': 'v1.13.1',
+  'report-logic.js': 'v1.14.1',
+  'report.js': 'v1.14.1',
   'pin-lock.js': 'v1.13.1',
   'settings.js': 'v1.13.1',
   'registration.js': 'v1.13.1',
@@ -35,7 +37,7 @@ const MODULE_MIN = {
   'evaluation.js': 'v1.13.1',
   'physical-evaluation.js': 'v1.13.1',
   'backup.js': 'v1.13.1',
-  'app.js': 'v1.13.1',
+  'app.js': 'v1.14.1',
 };
 
 function versionParts(v) {
@@ -71,6 +73,7 @@ const HELP_TOPICS = [
   { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas, check-ins e consistência de treino.' },
+  { title: 'Relatório de Evolução', text: 'Documento para o aluno e a família: frequência, evolução de carga, avaliação funcional, conquistas e mais, com PDF pela impressão do navegador e resumo para WhatsApp. Você escolhe o período e o que incluir; fotos nunca entram. Também exporta os dados de um único aluno.' },
   { title: 'Carga e Deload', text: 'Detecta platô por exercício e sinais de sobrecarga (esforço, check-ins e volume semanal) e sugere deload por volume ou espelhado, seguindo a hierarquia reps → séries → descanso → carga em ordem inversa. Os limites são editáveis em Configurações.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
   { title: 'Avaliação Postural', text: 'Checklist de achados posturais por segmento, fotos opcionais (com autorização do aluno) com grade e medida de ângulos, histórico com comparação e sugestão de ênfase de treino cruzada com a Avaliação Física, o objetivo e as Fichas.' },
@@ -150,6 +153,7 @@ function render() {
       if (AppState.activeTab === 'registro') { ExecutionView.bindEvents(contentEl); }
       if (AppState.activeTab === 'dashboard') { DashboardView.bindEvents(contentEl); DashboardView.afterRender(contentEl); }
       if (AppState.activeTab === 'carga') { MonitorView.bindEvents(contentEl); }
+      if (AppState.activeTab === 'relatorio') { ReportView.bindEvents(contentEl); }
       if (AppState.activeTab === 'avaliacao') { EvaluationView.bindEvents(contentEl); EvaluationView.afterRender(contentEl); }
       if (AppState.activeTab === 'fisica') { PhysicalEvaluationView.bindEvents(contentEl); PhysicalEvaluationView.afterRender(contentEl); }
       if (AppState.activeTab === 'postural') { PosturalView.bindEvents(contentEl); }
@@ -218,6 +222,7 @@ function renderHeader() {
             <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${countTrainingDays(AppState.data.sessions)})</option>
             <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
             <option value="carga" ${AppState.activeTab === 'carga' ? 'selected' : ''}>Carga e Deload</option>
+            <option value="relatorio" ${AppState.activeTab === 'relatorio' ? 'selected' : ''}>Relatório de Evolução</option>
             <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
             <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
             <option value="postural" ${AppState.activeTab === 'postural' ? 'selected' : ''}>Avaliação Postural (${AppState.data.posturalEvaluations.length})</option>
@@ -258,6 +263,7 @@ function renderTabContent() {
   if (AppState.activeTab === 'registro') return ExecutionView.renderHtml();
   if (AppState.activeTab === 'dashboard') return DashboardView.renderHtml();
   if (AppState.activeTab === 'carga') return MonitorView.renderHtml();
+  if (AppState.activeTab === 'relatorio') return ReportView.renderHtml();
   if (AppState.activeTab === 'avaliacao') return EvaluationView.renderHtml();
   if (AppState.activeTab === 'fisica') return PhysicalEvaluationView.renderHtml();
   if (AppState.activeTab === 'postural') return PosturalView.renderHtml();
@@ -380,4 +386,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.14.1';
