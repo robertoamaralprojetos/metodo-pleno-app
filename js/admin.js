@@ -70,6 +70,23 @@ function adminRenderHtml() {
       <td>${r.reviewDate === today ? '<span class="mp-pill mp-pill-alto">Hoje</span>' : `<span class="mp-pill mp-pill-alto">Vencida — ${Utils.formatDateBR(r.reviewDate)}</span>`}</td>
     </tr>`).join('');
 
+  // Triagem PAR-Q: alunos sem triagem, com triagem vencida/vencendo (12 meses) ou pendentes de atestado.
+  const parqAlerts = rows.map(({ student }) => {
+    const status = window.ParqTriage ? window.ParqTriage.status(student.anamnesis) : null;
+    if (!status) return null;
+    const result = student.anamnesis?.parq?.result;
+    const pendingCert = result === 'pendente';
+    if (status.code === 'valida' && !pendingCert) return null;
+    return { name: student.name, status, result, pendingCert };
+  }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  const parqRows = parqAlerts.map((a) => `
+    <tr>
+      <td>${Utils.escapeHtml(a.name)}</td>
+      <td><span class="mp-pill mp-pill-${a.status.level}">${Utils.escapeHtml(a.status.text)}</span></td>
+      <td>${a.result ? Utils.escapeHtml(window.ParqTriage.resultLabel(a.result)) : '—'}</td>
+    </tr>`).join('');
+
   return `
   <div class="mp-card">
     <h3>Faturamento</h3>
@@ -78,6 +95,18 @@ function adminRenderHtml() {
     </div>
     <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:18px 0 8px;color:var(--verde-principal);">Últimos 6 meses</h4>
     <div class="mp-chart-box" id="mp-admin-revenue-chart"></div>
+  </div>
+
+  <div class="mp-card" style="margin-top:20px;">
+    <h3>⚠ Triagem de prontidão (PAR-Q)</h3>
+    <div class="mp-sub" style="margin-top:10px;">Alunos sem triagem, com triagem vencida ou perto de vencer (validade de 12 meses) e casos pendentes de atestado médico.</div>
+    ${parqAlerts.length ? `
+    <div class="mp-table-scroll" style="margin-top:14px;">
+    <table class="mp-table">
+      <thead><tr><th>Aluno</th><th>Situação</th><th>Resultado</th></tr></thead>
+      <tbody>${parqRows}</tbody>
+    </table>
+    </div>` : `<div class="mp-sub" style="margin:14px 0 0;">Todas as triagens estão em dia. ✓</div>`}
   </div>
 
   <div class="mp-card" style="margin-top:20px;">
@@ -140,4 +169,4 @@ window.AdminView = { renderHtml: adminRenderHtml, bindEvents: adminBindEvents, a
 window.invalidateAdminData = invalidateAdminData;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.15.0';

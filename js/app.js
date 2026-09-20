@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.14.1';
+const APP_VERSION = 'v1.15.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -28,16 +28,16 @@ const MODULE_MIN = {
   'registration.js': 'v1.13.1',
   'payment-logic.js': 'v1.13.1',
   'payments.js': 'v1.13.1',
-  'admin.js': 'v1.13.1',
-  'anamnesis.js': 'v1.13.1',
+  'admin.js': 'v1.15.0',
+  'anamnesis.js': 'v1.15.0',
   'progression.js': 'v1.13.1',
   'planning.js': 'v1.13.1',
   'execution.js': 'v1.13.1',
   'dashboard.js': 'v1.13.1',
   'evaluation.js': 'v1.13.1',
-  'physical-evaluation.js': 'v1.13.1',
+  'physical-evaluation.js': 'v1.15.0',
   'backup.js': 'v1.13.1',
-  'app.js': 'v1.14.1',
+  'app.js': 'v1.15.0',
 };
 
 function versionParts(v) {
@@ -68,7 +68,7 @@ const HELP_TOPICS = [
   { title: '⚙️ Configurações', text: 'Personalize o nome do profissional exibido no cabeçalho, as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
-  { title: 'Anamnese', text: 'Triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
+  { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
   { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
   { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
@@ -386,4 +386,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.14.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.15.0';

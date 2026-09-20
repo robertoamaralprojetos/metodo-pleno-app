@@ -17,6 +17,7 @@ const PE_METRICS = [
   { key: 'basalMetabolism', label: 'Metabolismo basal (kcal)', getValue: (r) => r.basalMetabolism },
   { key: 'bodyAge', label: 'Idade corporal (anos)', getValue: (r) => r.bodyAge },
   { key: 'visceralFat', label: 'Gordura visceral', getValue: (r) => r.visceralFat },
+  { key: 'sitReach', label: 'Sentar e alcançar (cm)', getValue: (r) => r.sitReach?.best },
   ...CIRCUMFERENCE_FIELDS.map((f) => ({ key: 'circ_' + f.key, label: f.label + ' (cm)', getValue: (r) => r.circumferences?.[f.key] })),
 ];
 
@@ -49,6 +50,55 @@ function computeImcResult(weight, height, age) {
   return { imc: Math.round(imc * 10) / 10, ...classification };
 }
 
+// Flexibilidade — Sentar e alcançar (banco de Wells). Guarda as tentativas, o melhor
+// resultado (maior leitura, em cm) e o ponto de referência dos pés no banco.
+const SIT_REACH_FOOT_MARKS = [15, 23, 26, 38];
+
+// Classificação por idade e sexo — Teste de flexão do tronco à frente (sentar e alcançar).
+// Fonte: CSEP, Canadian Physical Activity, Fitness & Lifestyle Approach (3ª ed., 2003),
+// reproduzida nas diretrizes do ACSM (categorias de aptidão, em cm). Valores válidos para
+// 20 a 69 anos, em banco com o ponto zero (marca dos pés) em 26 cm. Em banco com a marca em
+// 23 cm, subtrai-se 3 cm de cada valor. Cada linha traz o MÍNIMO (cm) de cada categoria;
+// abaixo do mínimo de "Regular" = "Precisa melhorar".
+const SIT_REACH_NORMS = {
+  M: [
+    { min: 20, max: 29, excelente: 40, muitoBom: 34, bom: 30, regular: 25 },
+    { min: 30, max: 39, excelente: 38, muitoBom: 33, bom: 28, regular: 23 },
+    { min: 40, max: 49, excelente: 35, muitoBom: 29, bom: 24, regular: 18 },
+    { min: 50, max: 59, excelente: 35, muitoBom: 28, bom: 24, regular: 16 },
+    { min: 60, max: 69, excelente: 33, muitoBom: 25, bom: 20, regular: 15 },
+  ],
+  F: [
+    { min: 20, max: 29, excelente: 41, muitoBom: 37, bom: 33, regular: 28 },
+    { min: 30, max: 39, excelente: 41, muitoBom: 36, bom: 32, regular: 27 },
+    { min: 40, max: 49, excelente: 38, muitoBom: 34, bom: 30, regular: 25 },
+    { min: 50, max: 59, excelente: 39, muitoBom: 33, bom: 30, regular: 25 },
+    { min: 60, max: 69, excelente: 35, muitoBom: 31, bom: 27, regular: 23 },
+  ],
+};
+// Ajuste da tabela conforme a marca dos pés no banco (cm). Outras marcas: sem classificação.
+const SIT_REACH_MARK_OFFSET = { 26: 0, 23: -3 };
+
+// Retorna { label, level } ou null (sem tabela para a idade, o sexo ou a marca do banco).
+function sitReachClassification(best, age, sex, footMark) {
+  if (best == null || age == null) return null;
+  const offset = SIT_REACH_MARK_OFFSET[footMark];
+  if (offset === undefined) return null;
+  const table = SIT_REACH_NORMS[sex === 'F' ? 'F' : 'M'];
+  const row = table.find((r) => age >= r.min && age <= r.max);
+  if (!row) return null;
+  if (best >= row.excelente + offset) return { label: 'Excelente', level: 'leve' };
+  if (best >= row.muitoBom + offset) return { label: 'Muito bom', level: 'leve' };
+  if (best >= row.bom + offset) return { label: 'Bom', level: 'leve' };
+  if (best >= row.regular + offset) return { label: 'Regular', level: 'moderado' };
+  return { label: 'Precisa melhorar', level: 'alto' };
+}
+
+function sitReachSummary(record) {
+  const sr = record && record.sitReach;
+  return sr && typeof sr.best === 'number' ? sr : null;
+}
+
 function metricPoints(list, metric) {
   return list
     .filter((r) => metric.getValue(r) != null)
@@ -73,6 +123,7 @@ function peRenderHtml() {
         <td>${imcResult ? imcResult.imc : '—'}</td>
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
         <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}</td>
+        <td>${sitReachSummary(rec) ? sitReachSummary(rec).best + ' cm' + (() => { const c = sitReachClassification(sitReachSummary(rec).best, rec.age, rec.sex, sitReachSummary(rec).footMark); return c ? ' · ' + Utils.escapeHtml(c.label) : ''; })() : '—'}</td>
         <td style="max-width:230px;font-size:12.5px;">${workNeedLabels(rec.workNeeds).length ? Utils.escapeHtml(workNeedLabels(rec.workNeeds).join(', ')) : '—'}${rec.workNeedsNotes ? `<div style="color:var(--texto-suave);margin-top:2px;">${Utils.escapeHtml(rec.workNeedsNotes)}</div>` : ''}</td>
         <td>
           <button class="mp-btn mp-btn-ghost mp-btn-sm" data-print-eval="${rec.id}" type="button">🖨 Comparar c/ anterior</button>
@@ -126,6 +177,21 @@ function peRenderHtml() {
         <textarea id="pe-work-notes" placeholder="Ex: reforçar glúteo médio e extensores da coluna; evitar impacto no joelho direito."></textarea>
       </div>
 
+      <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Flexibilidade — Sentar e alcançar (banco de Wells)</h4>
+      <div class="mp-sub" style="margin:0 0 8px;">Faça um aquecimento e registre até 3 tentativas (leitura em cm). O melhor resultado é a maior leitura. Informe a marca onde ficam os pés no seu banco, para comparar avaliações sempre com o mesmo padrão.</div>
+      <div class="mp-form-row mp-row4">
+        <div class="mp-field"><label>Tentativa 1 (cm)</label><input type="number" step="0.5" id="pe-sr-1"></div>
+        <div class="mp-field"><label>Tentativa 2 (cm)</label><input type="number" step="0.5" id="pe-sr-2"></div>
+        <div class="mp-field"><label>Tentativa 3 (cm)</label><input type="number" step="0.5" id="pe-sr-3"></div>
+        <div class="mp-field"><label>Marca dos pés no banco</label>
+          <select id="pe-sr-mark">
+            <option value="">Não informado</option>
+            ${SIT_REACH_FOOT_MARKS.map((m) => `<option value="${m}"${m === 23 ? ' selected' : ''}>${m} cm</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div id="pe-sr-preview"></div>
+
       <div class="mp-form-actions" style="margin-top:14px;">
         <button type="button" id="pe-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar avaliação</button>
       </div>
@@ -154,7 +220,7 @@ function peRenderHtml() {
     <h3>Histórico de avaliações</h3>
     <div class="mp-table-scroll">
     <table class="mp-table">
-      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th>Trabalho necessário</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th>Sentar e alcançar</th><th>Trabalho necessário</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -175,7 +241,19 @@ function pePrintHtml(student, current, previous) {
     ['Classificação IMC', curImc?.label, prevImc?.label],
     ...BIOIMPEDANCE_FIELDS.map((f) => [f.label, current[f.key], previous?.[f.key]]),
     ...CIRCUMFERENCE_FIELDS.map((f) => [f.label, current.circumferences?.[f.key], previous?.circumferences?.[f.key]]),
+    ['Sentar e alcançar — melhor resultado (cm)', sitReachSummary(current)?.best, sitReachSummary(previous)?.best],
   ];
+  const curSr = sitReachSummary(current);
+  const curSrClass = curSr ? sitReachClassification(curSr.best, current.age, current.sex, curSr.footMark) : null;
+  if (curSrClass) {
+    const prevSr = sitReachSummary(previous);
+    const prevSrClass = prevSr ? sitReachClassification(prevSr.best, previous.age, previous.sex, prevSr.footMark) : null;
+    rowsData.push(['Sentar e alcançar — classificação', curSrClass.label, prevSrClass?.label]);
+  }
+  const srNoteMark = curSr?.footMark ?? sitReachSummary(previous)?.footMark;
+  const srNote = (curSr || sitReachSummary(previous))
+    ? `<div style="margin-top:8px;font-size:12px;color:#555;">Sentar e alcançar (banco de Wells): melhor de até 3 tentativas${srNoteMark != null ? `; marca dos pés no banco: ${srNoteMark} cm` : ''}. Compare avaliações feitas com o mesmo banco e a mesma marca.</div>`
+    : '';
 
   const rowsHtml = rowsData.map(([label, cur, prev]) => {
     let delta = '';
@@ -193,6 +271,7 @@ function pePrintHtml(student, current, previous) {
       <thead><tr><th>Medida</th><th>${previous ? 'Anterior' : ''}</th><th>Atual</th><th>${previous ? 'Diferença' : ''}</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
+    ${srNote}
     ${workNeedLabels(current.workNeeds).length || current.workNeedsNotes ? `
     <div style="margin-top:14px;"><strong>Trabalho necessário:</strong> ${Utils.escapeHtml(workNeedLabels(current.workNeeds).join(', ') || '—')}${current.workNeedsNotes ? `<br><span style="color:#555;">${Utils.escapeHtml(current.workNeedsNotes)}</span>` : ''}</div>` : ''}
   `;
@@ -220,6 +299,15 @@ function peBuildAndPrintReport(printArea, student, list) {
     const points = metricPoints(list, m);
     const chart = Charts.lineChart(points, { color: Charts.COLORS.verdePrincipal, pointColor: Charts.COLORS.dourado, width: 680, height: 190 });
     if (chart) section.appendChild(chart);
+    if (m.key === 'sitReach') {
+      const lastWithMark = [...list].reverse().find((r) => sitReachSummary(r) && sitReachSummary(r).footMark != null);
+      const lastSr = [...list].reverse().find((r) => sitReachSummary(r));
+      const cls = lastSr ? sitReachClassification(sitReachSummary(lastSr).best, lastSr.age, lastSr.sex, sitReachSummary(lastSr).footMark) : null;
+      const noteParts = ['Banco de Wells: melhor de até 3 tentativas por avaliação.'];
+      if (lastWithMark) noteParts.push(`Marca dos pés no banco: ${sitReachSummary(lastWithMark).footMark} cm.`);
+      if (cls) noteParts.push(`Última classificação: ${cls.label}.`);
+      section.appendChild(Utils.el(`<div style="margin-top:4px;font-size:12px;color:#555;">${Utils.escapeHtml(noteParts.join(' '))}</div>`));
+    }
     printArea.appendChild(section);
   });
 
@@ -259,6 +347,35 @@ function peBindEvents(container) {
     });
   });
 
+  function readSitReachAttempts() {
+    return [1, 2, 3]
+      .map((n) => container.querySelector(`#pe-sr-${n}`)?.value)
+      .filter((v) => v !== '' && v != null)
+      .map(Number)
+      .filter((n) => Number.isFinite(n));
+  }
+  function recomputeSitReachPreview() {
+    const el = container.querySelector('#pe-sr-preview');
+    if (!el) return;
+    const attempts = readSitReachAttempts();
+    if (!attempts.length) { el.innerHTML = ''; return; }
+    const best = Math.max(...attempts);
+    const markValue = container.querySelector('#pe-sr-mark')?.value;
+    const cls = sitReachClassification(best, age, student.sex, markValue ? Number(markValue) : null);
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin:6px 0 4px;">
+        <div style="font-family:'Fraunces',serif;font-weight:600;font-size:26px;color:var(--verde-principal);">${best} cm</div>
+        <div>
+          <div style="font-size:12px;color:var(--texto-suave);">Melhor resultado (maior leitura)</div>
+          ${cls
+            ? `<span class="mp-pill mp-pill-${cls.level}">${Utils.escapeHtml(cls.label)}</span> <span style="font-size:11px;color:var(--texto-suave);">ACSM/CSEP, 20–69 anos</span>`
+            : '<span style="font-size:11px;color:var(--texto-suave);">Sem classificação para esta idade ou marca do banco (tabela: 20–69 anos, marca de 23 ou 26 cm).</span>'}
+        </div>
+      </div>`;
+  }
+  [1, 2, 3].forEach((n) => container.querySelector(`#pe-sr-${n}`)?.addEventListener('input', recomputeSitReachPreview));
+  container.querySelector('#pe-sr-mark')?.addEventListener('change', recomputeSitReachPreview);
+
   container.querySelector('#pe-save')?.addEventListener('click', async () => {
     const weight = Number(container.querySelector('#pe-weight').value) || null;
     const height = Number(container.querySelector('#pe-height').value) || null;
@@ -287,6 +404,16 @@ function peBindEvents(container) {
       const v = container.querySelector(`#pe-${f.key}`).value;
       record[f.key] = v === '' ? null : Number(v);
     });
+
+    const srAttempts = readSitReachAttempts();
+    if (srAttempts.length) {
+      const markValue = container.querySelector('#pe-sr-mark')?.value;
+      record.sitReach = {
+        attempts: srAttempts,
+        best: Math.max(...srAttempts),
+        footMark: markValue === '' || markValue == null ? null : Number(markValue),
+      };
+    }
 
     AppState.data.physicalEvaluations.push(record);
     render();
@@ -336,4 +463,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.15.0';
