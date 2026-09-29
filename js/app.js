@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.17.0';
+const APP_VERSION = 'v1.18.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -24,8 +24,9 @@ const MODULE_MIN = {
   'report-logic.js': 'v1.14.1',
   'report.js': 'v1.16.0',
   'pin-lock.js': 'v1.16.0',
-  'settings.js': 'v1.17.0',
-  'profile.js': 'v1.16.0',
+  'settings.js': 'v1.18.0',
+  'profile.js': 'v1.18.0',
+  'license.js': 'v1.18.0',
   'documents.js': 'v1.17.0',
   'registration.js': 'v1.17.0',
   'payment-logic.js': 'v1.13.1',
@@ -38,8 +39,8 @@ const MODULE_MIN = {
   'dashboard.js': 'v1.13.1',
   'evaluation.js': 'v1.16.0',
   'physical-evaluation.js': 'v1.16.0',
-  'backup.js': 'v1.16.0',
-  'app.js': 'v1.17.0',
+  'backup.js': 'v1.18.0',
+  'app.js': 'v1.18.0',
 };
 
 function versionParts(v) {
@@ -139,6 +140,16 @@ function render() {
     PinLock.bindLockEvents(root);
     return;
   }
+  if (!License.ready) {
+    root.innerHTML = '<div class="mp-loading">Verificando licença…</div>';
+    License.evaluate().then(render);
+    return;
+  }
+  if (!License.allowsUse()) {
+    root.innerHTML = License.screenHtml();
+    License.screenBind(root);
+    return;
+  }
   if (Onboarding.shouldShow()) {
     root.innerHTML = Onboarding.renderHtml();
     Onboarding.bindEvents(root);
@@ -203,6 +214,7 @@ function renderHeader() {
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
       ${integrityBannerHtml()}
+      ${License.bannerHtml()}
       ${BackupModule.needsBackupReminder(AppState.settings) ? `
       <div class="mp-warning-banner mp-warning-soft">
         💾 ${AppState.settings?.lastBackupAt ? `Faz mais de 7 dias que você não faz backup (último em ${Utils.formatDateBR(AppState.settings.lastBackupAt)}).` : 'Você ainda não fez nenhum backup dos dados.'}
@@ -401,4 +413,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.17.0';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.18.0';

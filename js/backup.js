@@ -82,6 +82,7 @@ async function importBackup(file) {
     // então não pede o PIN agora (vale a partir da próxima abertura).
     AppState.settings = await loadSettings();
     AppState.pinUnlocked = true;
+    if (window.License) License.ready = false; // reavalia a licença que veio no backup
     if (!AppState.settings.onboardingDone) await saveSettingsPatch({ onboardingDone: true });
     AppState.students = await StudentsData.listStudents();
     await switchStudent(AppState.students[0]?.id || null);
@@ -93,4 +94,4 @@ async function importBackup(file) {
 window.BackupModule = { exportBackup, importBackup, daysSinceBackup, needsBackupReminder };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.18.0';

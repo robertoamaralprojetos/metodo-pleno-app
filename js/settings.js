@@ -20,6 +20,9 @@ const DEFAULT_SETTINGS = {
   // Documentos (v1.17.0) — em branco = usa o texto/título padrão de documents.js
   orientationsTitle: '',
   orientationsTemplate: '',
+  // Licença (v1.18.0)
+  licenseKey: '',
+  licenseLastSeen: '',
   noticeHours: 1,
   maxMakeupsPerMonth: 2,
   allowTransfer: true,
@@ -189,6 +192,8 @@ function settingsRenderHtml() {
   return `
   ${Profile.settingsCardHtml(s)}
 
+  ${License.settingsCardHtml()}
+
   <div class="mp-card" style="margin-top:20px;">
     <h3>Regras de desmarcação, reposição e férias</h3>
     <div class="mp-sub" style="margin-top:10px;">Esses valores definem o cálculo automático em "Controle de Pagamento" <strong>e</strong> o texto explicativo mostrado lá — sempre sincronizados.</div>
@@ -263,6 +268,7 @@ function settingsBindEvents(container) {
     render();
   });
 
+  License.settingsBind(container);
   StudentDocs.settingsBind(container);
   MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
@@ -275,4 +281,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.17.0';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.18.0';

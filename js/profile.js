@@ -73,9 +73,9 @@ function applyTheme(color) {
 
 // ---------- Dados do perfil ----------
 function prof() { return AppState.settings || {}; }
-function profName() { return (prof().headerProfessionalName || '').trim(); }
+function profName() { return (window.License && License.lockedName()) || (prof().headerProfessionalName || '').trim(); }
 function profTitle() { const t = prof().profTitle; return (t == null ? 'Personal Trainer' : t).trim(); }
-function profCrefLabel() { const c = (prof().profCref || '').trim(); return c ? `CREF ${c.replace(/^CREF\s*/i, '')}` : ''; }
+function profCrefLabel() { const c = ((window.License && License.lockedCref()) || prof().profCref || '').trim(); return c ? `CREF ${c.replace(/^CREF\s*/i, '')}` : ''; }
 function profLogoSrc() { return prof().profLogo || DEFAULT_LOGO_SRC; }
 function profHasCustomLogo() { return !!prof().profLogo; }
 
@@ -150,10 +150,13 @@ function readLogoFile(file) {
 function profileFieldsHtml(prefix, s, parts = { data: true, visual: true }) {
   const esc = Utils.escapeHtml;
   const color = (s.themeColor || DEFAULT_THEME_COLOR).toUpperCase();
+  const lockName = window.License ? License.lockedName() : '';
+  const lockCref = window.License ? License.lockedCref() : '';
+  const lockNote = ' <span style="text-transform:none;letter-spacing:0;font-weight:400;">(definido pela licença)</span>';
   const dataHtml = `
     <div class="mp-form-row mp-row2">
-      <div class="mp-field"><label>Seu nome (como aparece no app e nos documentos) *</label><input type="text" id="${prefix}-prof-name" value="${esc(s.headerProfessionalName || '')}" placeholder="Ex: Prof. Ana Souza"></div>
-      <div class="mp-field"><label>CREF</label><input type="text" id="${prefix}-prof-cref" value="${esc(s.profCref || '')}" placeholder="Ex: 012345-G/RJ"></div>
+      <div class="mp-field"><label>Seu nome (como aparece no app e nos documentos) *${lockName ? lockNote : ''}</label><input type="text" id="${prefix}-prof-name" value="${esc(lockName || s.headerProfessionalName || '')}" placeholder="Ex: Prof. Ana Souza" ${lockName ? 'disabled' : ''}></div>
+      <div class="mp-field"><label>CREF${lockCref ? lockNote : ''}</label><input type="text" id="${prefix}-prof-cref" value="${esc(lockCref || s.profCref || '')}" placeholder="Ex: 012345-G/RJ" ${lockCref ? 'disabled' : ''}></div>
     </div>
     <div class="mp-form-row mp-row2">
       <div class="mp-field"><label>Profissão (1ª linha do cabeçalho)</label><input type="text" id="${prefix}-prof-title" value="${esc(s.profTitle == null ? 'Personal Trainer' : s.profTitle)}" placeholder="Ex: Personal Trainer"></div>
@@ -244,8 +247,8 @@ function readProfileFields(container, prefix) {
   const patch = {};
   const val = (id) => container.querySelector(`#${prefix}-${id}`);
   if (val('prof-name')) {
-    patch.headerProfessionalName = val('prof-name').value.trim();
-    patch.profCref = val('prof-cref').value.trim();
+    patch.headerProfessionalName = (window.License && License.lockedName()) || val('prof-name').value.trim();
+    patch.profCref = (window.License && License.lockedCref()) || val('prof-cref').value.trim();
     patch.profTitle = val('prof-title').value.trim();
     patch.profBusinessName = val('prof-business').value.trim();
     patch.profPhone = val('prof-phone').value.trim();
@@ -417,4 +420,4 @@ window.Onboarding = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['profile.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['profile.js'] = 'v1.18.0';
