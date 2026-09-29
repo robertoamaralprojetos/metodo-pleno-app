@@ -114,6 +114,8 @@ function regRenderHtml() {
     <button class="mp-btn mp-btn-danger" id="r-delete" type="button">Remover aluno</button>
     <button class="mp-btn mp-btn-gold" id="r-save" type="button" style="background:var(--verde-principal);color:#fff;">Salvar cadastro</button>
   </div>
+
+  ${StudentDocs.registrationCardHtml(student)}
   `;
 }
 
@@ -201,6 +203,8 @@ function regBindEvents(container) {
     render();
   });
 
+  StudentDocs.registrationBind(container, student);
+
   container.querySelector('#r-delete').addEventListener('click', async () => {
     const ok = await Utils.confirmDialog(`Remover "${student.name}" da lista de alunos? O histórico não é apagado.`);
     if (!ok) return;
@@ -215,4 +219,4 @@ function regBindEvents(container) {
 window.RegistrationView = { renderHtml: regRenderHtml, bindEvents: regBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['registration.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['registration.js'] = 'v1.17.0';

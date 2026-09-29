@@ -109,6 +109,8 @@ function adminRenderHtml() {
     </div>` : `<div class="mp-sub" style="margin:14px 0 0;">Todas as triagens estão em dia. ✓</div>`}
   </div>
 
+  ${StudentDocs.adminCardHtml(rows.map((r) => r.student))}
+
   <div class="mp-card" style="margin-top:20px;">
     <h3>⚠ Revisão de treino vencendo</h3>
     <div class="mp-sub" style="margin-top:10px;">Fichas (A-E) cuja data de revisão já passou ou é hoje, de todos os alunos.</div>
@@ -162,6 +164,7 @@ function adminAfterRender(container) {
 }
 
 function adminBindEvents(container) {
+  StudentDocs.adminBind(container);
   ensureAdminData();
 }
 
@@ -169,4 +172,4 @@ window.AdminView = { renderHtml: adminRenderHtml, bindEvents: adminBindEvents, a
 window.invalidateAdminData = invalidateAdminData;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.15.0';
+(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.17.0';

@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS = {
   profInstagram: '',
   profLogo: null,          // imagem (data URL) redimensionada, salva só neste aparelho
   themeColor: '#1F3D30',   // cor principal do app (padrão: verde Método Pleno)
+  // Documentos (v1.17.0) — em branco = usa o texto/título padrão de documents.js
+  orientationsTitle: '',
+  orientationsTemplate: '',
   noticeHours: 1,
   maxMakeupsPerMonth: 2,
   allowTransfer: true,
@@ -218,6 +221,8 @@ function settingsRenderHtml() {
     </div>
   </div>
 
+  ${StudentDocs.settingsCardHtml(s)}
+
   ${MonitorView.settingsHtml(s)}
 
   ${settingsPinSectionHtml(s)}
@@ -258,6 +263,7 @@ function settingsBindEvents(container) {
     render();
   });
 
+  StudentDocs.settingsBind(container);
   MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
 }
@@ -269,4 +275,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.17.0';

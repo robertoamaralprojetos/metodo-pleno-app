@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.16.0';
+const APP_VERSION = 'v1.17.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -24,13 +24,14 @@ const MODULE_MIN = {
   'report-logic.js': 'v1.14.1',
   'report.js': 'v1.16.0',
   'pin-lock.js': 'v1.16.0',
-  'settings.js': 'v1.16.0',
+  'settings.js': 'v1.17.0',
   'profile.js': 'v1.16.0',
-  'registration.js': 'v1.13.1',
+  'documents.js': 'v1.17.0',
+  'registration.js': 'v1.17.0',
   'payment-logic.js': 'v1.13.1',
   'payments.js': 'v1.13.1',
-  'admin.js': 'v1.15.0',
-  'anamnesis.js': 'v1.15.0',
+  'admin.js': 'v1.17.0',
+  'anamnesis.js': 'v1.17.0',
   'progression.js': 'v1.13.1',
   'planning.js': 'v1.16.0',
   'execution.js': 'v1.13.1',
@@ -38,7 +39,7 @@ const MODULE_MIN = {
   'evaluation.js': 'v1.16.0',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.16.0',
-  'app.js': 'v1.16.0',
+  'app.js': 'v1.17.0',
 };
 
 function versionParts(v) {
@@ -66,8 +67,8 @@ function integrityBannerHtml() {
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
-  { title: '⚙️ Configurações', text: 'Perfil do Profissional (nome, CREF, contatos, logo e cor do app — usados no cabeçalho e em todos os relatórios), as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
-  { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
+  { title: '⚙️ Configurações', text: 'Perfil do Profissional (nome, CREF, contatos, logo e cor do app — usados no cabeçalho e em todos os relatórios), o texto das Orientações e regras para o aluno, as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
+  { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado. Em "Documentos do aluno": colher a assinatura das Orientações e do PAR-Q com o dedo na tela, enviar as orientações para leitura e compartilhar os PDFs assinados pelo WhatsApp.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
   { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
@@ -400,4 +401,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.17.0';

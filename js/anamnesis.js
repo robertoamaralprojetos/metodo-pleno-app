@@ -117,7 +117,8 @@ function anamRenderHtml() {
   return `
   <div class="mp-card">
     <h3>Triagem de prontidão (PAR-Q)</h3>
-    <div class="mp-sub" style="margin-top:10px;">Baseada no PAR-Q, concebido para pessoas de 15 a 69 anos. Aplique antes do início dos treinos e guarde o termo assinado em papel. Dado sensível: fica salvo apenas neste dispositivo.</div>
+    <div class="mp-sub" style="margin-top:10px;">Baseada no PAR-Q, concebido para pessoas de 15 a 69 anos. Aplique antes do início dos treinos, salve e colha a assinatura do aluno aqui mesmo (ou em papel). Dado sensível: fica salvo apenas neste dispositivo.</div>
+    ${StudentDocs.parqSignRowHtml(student)}
     <div style="margin:0 0 12px;"><span class="mp-pill mp-pill-${status.level}">${Utils.escapeHtml(status.text)}</span></div>
     ${parq?.result ? `<div class="mp-sub" style="margin-top:0;">Último resultado: <strong>${Utils.escapeHtml(parqResultLabel(parq.result))}</strong> (${Utils.formatDateBR(parq.date)})</div>` : ''}
     ${age != null && age >= 70 ? `<div class="mp-sub" style="margin-top:0;color:var(--texto);">Aluno com ${age} anos: recomenda-se orientação médica antes de iniciar o programa, mesmo que todas as respostas sejam Não.</div>` : ''}
@@ -223,6 +224,7 @@ function anamBindEvents(container) {
     });
   });
   refreshParqSuggestion();
+  StudentDocs.parqSignBind(container, student);
 
   container.querySelector('#r-anam-save').addEventListener('click', async () => {
     const missingParq = PARQ_QUESTIONS.some((q) => state[PARQ_PREFIX + q.key] === undefined);
@@ -275,4 +277,4 @@ window.AnamnesisView = { renderHtml: anamRenderHtml, bindEvents: anamBindEvents 
 window.ParqTriage = { status: parqStatus, resultLabel: parqResultLabel };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['anamnesis.js'] = 'v1.15.0';
+(window.MP_BUILD = window.MP_BUILD || {})['anamnesis.js'] = 'v1.17.0';
