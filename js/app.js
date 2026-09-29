@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.15.0';
+const APP_VERSION = 'v1.16.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -22,22 +22,23 @@ const MODULE_MIN = {
   'monitor-logic.js': 'v1.13.1',
   'monitor.js': 'v1.13.1',
   'report-logic.js': 'v1.14.1',
-  'report.js': 'v1.14.1',
-  'pin-lock.js': 'v1.13.1',
-  'settings.js': 'v1.13.1',
+  'report.js': 'v1.16.0',
+  'pin-lock.js': 'v1.16.0',
+  'settings.js': 'v1.16.0',
+  'profile.js': 'v1.16.0',
   'registration.js': 'v1.13.1',
   'payment-logic.js': 'v1.13.1',
   'payments.js': 'v1.13.1',
   'admin.js': 'v1.15.0',
   'anamnesis.js': 'v1.15.0',
   'progression.js': 'v1.13.1',
-  'planning.js': 'v1.13.1',
+  'planning.js': 'v1.16.0',
   'execution.js': 'v1.13.1',
   'dashboard.js': 'v1.13.1',
-  'evaluation.js': 'v1.13.1',
-  'physical-evaluation.js': 'v1.15.0',
-  'backup.js': 'v1.13.1',
-  'app.js': 'v1.15.0',
+  'evaluation.js': 'v1.16.0',
+  'physical-evaluation.js': 'v1.16.0',
+  'backup.js': 'v1.16.0',
+  'app.js': 'v1.16.0',
 };
 
 function versionParts(v) {
@@ -65,7 +66,7 @@ function integrityBannerHtml() {
 
 const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
-  { title: '⚙️ Configurações', text: 'Personalize o nome do profissional exibido no cabeçalho, as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
+  { title: '⚙️ Configurações', text: 'Perfil do Profissional (nome, CREF, contatos, logo e cor do app — usados no cabeçalho e em todos os relatórios), as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado.' },
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
@@ -131,9 +132,15 @@ function render() {
     root.innerHTML = '<div class="mp-loading">Preparando o painel do Método Pleno…</div>';
     return;
   }
+  Profile.applyTheme(AppState.settings?.themeColor);
   if (AppState.settings?.pinHash && !AppState.pinUnlocked) {
     root.innerHTML = PinLock.renderLockScreen();
     PinLock.bindLockEvents(root);
+    return;
+  }
+  if (Onboarding.shouldShow()) {
+    root.innerHTML = Onboarding.renderHtml();
+    Onboarding.bindEvents(root);
     return;
   }
   try {
@@ -142,6 +149,11 @@ function render() {
     const helpBtn = document.getElementById('mp-help-btn');
     if (helpBtn) helpBtn.addEventListener('click', openHelpModal);
     const contentEl = document.getElementById('mp-tabcontent');
+    if (!AppState.currentId) {
+      if (AppState.activeTab === 'configuracoes') SettingsView.bindEvents(contentEl);
+      const openCfg = document.getElementById('mp-open-settings');
+      if (openCfg) openCfg.addEventListener('click', () => { AppState.activeTab = 'configuracoes'; render(); });
+    }
     if (AppState.currentId) {
       if (AppState.activeTab === 'administrativo') { AdminView.bindEvents(contentEl); AdminView.afterRender(contentEl); }
       if (AppState.activeTab === 'configuracoes') { SettingsView.bindEvents(contentEl); }
@@ -181,11 +193,11 @@ function renderHeader() {
   <div class="mp-header">
     <div class="mp-wrap">
       <div class="mp-brand-row">
-        <img src="assets/imagens/logo_metodo_pleno_transparente.png" alt="Método Pleno" class="mp-logo">
+        <img src="${Utils.escapeHtml(Profile.logoSrc())}" alt="Logo" class="mp-logo">
         <div>
-          <div class="mp-eyebrow">Método Pleno · Movimento e Longevidade</div>
-          <h1 class="mp-title">Acompanhamento Individualizado</h1>
-          <div class="mp-tagline">${Utils.escapeHtml((AppState.settings && AppState.settings.headerProfessionalName) || 'Movimento e Longevidade')}</div>
+          ${Profile.title() ? `<div class="mp-eyebrow">${Utils.escapeHtml(Profile.title())}</div>` : ''}
+          <h1 class="mp-title">${Utils.escapeHtml(Profile.name() || 'Acompanhamento Individualizado')}</h1>
+          <div class="mp-tagline">${Utils.escapeHtml(Profile.brandLine())}</div>
         </div>
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
@@ -248,9 +260,11 @@ function renderFooter() {
 
 function renderTabContent() {
   if (!AppState.currentId) {
+    if (AppState.activeTab === 'configuracoes') return SettingsView.renderHtml();
     return `<div class="mp-empty">
       <h3>Comece cadastrando um aluno</h3>
       <p>Digite o nome do aluno acima e clique em "+ Adicionar aluno" para abrir a ficha individual de acompanhamento.</p>
+      <button type="button" id="mp-open-settings" class="mp-btn mp-btn-ghost" style="margin-top:10px;border-color:var(--verde-suave);color:var(--verde-principal);">⚙️ Perfil e configurações</button>
     </div>`;
   }
   if (AppState.activeTab === 'administrativo') return AdminView.renderHtml();
@@ -386,4 +400,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.15.0';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.16.0';
