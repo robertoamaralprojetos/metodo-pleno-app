@@ -15,7 +15,7 @@ const LICENSE_PREFIX = 'MP1-';
 const LICENSE_GRACE_DAYS = 7;
 const LICENSE_WARN_DAYS = 15;
 // Contato exibido na tela de licença (para comprar/renovar).
-const LICENSE_SELLER = { name: 'Professor Roberto Amaral', whatsapp: '' };
+const LICENSE_SELLER = { name: 'Professor Roberto Amaral', whatsapp: '(22) 98169-0277' };
 
 const License = {
   ready: false,
@@ -206,4 +206,4 @@ Object.assign(License, {
 window.License = License;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.18.0';
+(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.18.1';
