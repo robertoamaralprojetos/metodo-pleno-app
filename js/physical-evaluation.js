@@ -265,8 +265,7 @@ function pePrintHtml(student, current, previous) {
   }).join('');
 
   return `
-    <h2 style="font-family:Georgia,serif;">Método Pleno — Avaliação Física</h2>
-    <div>Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Data: ${Utils.formatDateBR(current.date)}${previous ? ` &nbsp;·&nbsp; Anterior: ${Utils.formatDateBR(previous.date)}` : ''}</div>
+    ${Profile.docHeaderHtml('Avaliação Física', `Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Data: ${Utils.formatDateBR(current.date)}${previous ? ` &nbsp;·&nbsp; Anterior: ${Utils.formatDateBR(previous.date)}` : ''}`)}
     <table class="mp-print-table">
       <thead><tr><th>Medida</th><th>${previous ? 'Anterior' : ''}</th><th>Atual</th><th>${previous ? 'Diferença' : ''}</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
@@ -289,8 +288,7 @@ function peBuildAndPrintReport(printArea, student, list) {
   printArea.innerHTML = '';
   printArea.appendChild(Utils.el(`
     <div class="mp-report-header">
-      <h2 style="font-family:Georgia,serif;margin-bottom:2px;">Método Pleno — Relatório de Evolução Física</h2>
-      <div style="color:#555;">Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)</div>
+      ${Profile.docHeaderHtml('Relatório de Evolução Física', `Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)`)}
     </div>
   `));
 
@@ -463,4 +461,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.15.0';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.16.0';

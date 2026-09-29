@@ -282,8 +282,7 @@ function planRenderHtml() {
   </div>
 
   <div id="mp-print-area" class="mp-print-only">
-    <h2 style="font-family:Georgia,serif;">Método Pleno — Plano de Aula</h2>
-    <div>Aluno: ${Utils.escapeHtml(currentStudent()?.name || '')} &nbsp;·&nbsp; Data: ${fmtDate(planDate)}${plan?.ficha ? ` &nbsp;·&nbsp; Ficha ${plan.ficha}` : ''}</div>
+    ${Profile.docHeaderHtml('Plano de Aula', `Aluno: ${Utils.escapeHtml(currentStudent()?.name || '')} &nbsp;·&nbsp; Data: ${fmtDate(planDate)}${plan?.ficha ? ` &nbsp;·&nbsp; Ficha ${plan.ficha}` : ''}`)}
     <table class="mp-print-table">
       <thead><tr><th>Exercício</th><th>Alvo (séries×rep · carga)</th><th>Séries real</th><th>Reps real</th><th>Carga real</th><th>Borg</th></tr></thead>
       <tbody>${printRows}</tbody>
@@ -468,4 +467,4 @@ function planBindEvents(container) {
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.16.0';

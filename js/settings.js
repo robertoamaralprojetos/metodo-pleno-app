@@ -6,7 +6,17 @@
 
 const DEFAULT_SETTINGS = {
   id: 'global',
-  headerProfessionalName: 'Prof. Roberto Amaral',
+  // Perfil do Profissional (v1.16.0) — personaliza cabeçalho, relatórios e documentos.
+  // Vem em branco: cada profissional preenche o seu no primeiro acesso ou em Configurações.
+  headerProfessionalName: '',
+  profTitle: 'Personal Trainer', // 1ª linha do cabeçalho (profissão)
+  profCref: '',
+  profBusinessName: '',
+  profPhone: '',
+  profEmail: '',
+  profInstagram: '',
+  profLogo: null,          // imagem (data URL) redimensionada, salva só neste aparelho
+  themeColor: '#1F3D30',   // cor principal do app (padrão: verde Método Pleno)
   noticeHours: 1,
   maxMakeupsPerMonth: 2,
   allowTransfer: true,
@@ -64,7 +74,6 @@ function generatePolicyParagraphs(s) {
 
 function readSettingsForm(container) {
   return {
-    headerProfessionalName: container.querySelector('#cfg-header-name').value.trim(),
     noticeHours: Number(container.querySelector('#cfg-notice-hours').value) || 0,
     maxMakeupsPerMonth: Math.max(1, parseInt(container.querySelector('#cfg-max-makeups').value, 10) || 1),
     allowTransfer: container.querySelector('#cfg-allow-transfer').checked,
@@ -175,14 +184,7 @@ function settingsBindPinEvents(container) {
 function settingsRenderHtml() {
   const s = AppState.settings;
   return `
-  <div class="mp-card">
-    <h3>Cabeçalho</h3>
-    <div class="mp-sub" style="margin-top:10px;">Aparece no topo do app, no lugar da tagline, embaixo do título.</div>
-    <div class="mp-field">
-      <label>Nome do profissional exibido no cabeçalho</label>
-      <input type="text" id="cfg-header-name" value="${Utils.escapeHtml(s.headerProfessionalName || '')}" placeholder="Ex: Prof. Roberto Amaral">
-    </div>
-  </div>
+  ${Profile.settingsCardHtml(s)}
 
   <div class="mp-card" style="margin-top:20px;">
     <h3>Regras de desmarcação, reposição e férias</h3>
@@ -247,6 +249,15 @@ function settingsBindEvents(container) {
     render();
   });
 
+  Profile.bindProfileFields(container, 'cfg');
+  container.querySelector('#cfg-profile-save')?.addEventListener('click', async () => {
+    const patch = Profile.readProfileFields(container, 'cfg');
+    if (!patch.headerProfessionalName) { Utils.toast('Informe o seu nome (como deve aparecer no app e nos documentos).', 'error'); return; }
+    await saveSettingsPatch(patch);
+    Utils.toast('Perfil salvo ✓', 'success');
+    render();
+  });
+
   MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
 }
@@ -258,4 +269,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.16.0';

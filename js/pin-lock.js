@@ -34,9 +34,9 @@ function pinLockRenderHtml() {
   return `
   <div class="mp-pin-lock">
     <div class="mp-pin-lock-card">
-      <img src="assets/imagens/logo_metodo_pleno_transparente.png" alt="Método Pleno" class="mp-pin-lock-logo">
+      <img src="${Utils.escapeHtml(Profile.logoSrc())}" alt="Logo" class="mp-pin-lock-logo">
       <h2>Acesso protegido</h2>
-      <p class="mp-sub" style="margin-bottom:0;">Digite o PIN para abrir o Método Pleno.</p>
+      <p class="mp-sub" style="margin-bottom:0;">Digite o PIN para abrir o app.</p>
       <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" id="mp-pin-input" class="mp-pin-input" placeholder="••••">
       <div id="mp-pin-error" class="mp-pin-error"></div>
       <button type="button" id="mp-pin-submit" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;width:100%;">Desbloquear</button>
@@ -98,4 +98,4 @@ window.PinLock = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['pin-lock.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['pin-lock.js'] = 'v1.16.0';

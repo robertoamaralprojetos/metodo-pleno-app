@@ -39,7 +39,7 @@ const repEsc = (s) => Utils.escapeHtml(s == null ? '' : String(s));
 const repMultiline = (s) => repEsc(s).replace(/\n/g, '<br>');
 
 function repFirstName(student) { return (student.name || '').trim().split(/\s+/)[0] || 'Aluno(a)'; }
-function repProfessor() { return (AppState.settings && AppState.settings.headerProfessionalName) || ''; }
+function repProfessor() { return Profile.signatureLine(); }
 
 // ---------- Modelo (dados da tela + cálculos) ----------
 function repBuildModel() {
@@ -127,11 +127,15 @@ function repHtml(model, opts) {
 
   parts.push(`
   <div style="font-family:'Segoe UI',Arial,sans-serif;color:#222;font-size:13.5px;line-height:1.5;">
-    <div style="border-bottom:3px solid ${REP_GOLD};padding-bottom:10px;margin-bottom:16px;">
-      <div style="font-size:11px;letter-spacing:.14em;color:#8a6d2b;font-weight:700;">MÉTODO PLENO · MOVIMENTO E LONGEVIDADE</div>
+    <div style="border-bottom:3px solid ${REP_GOLD};padding-bottom:10px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+      <img src="${repEsc(Profile.logoSrc())}" alt="" style="height:60px;width:auto;max-width:170px;object-fit:contain;flex-shrink:0;">
+      <div style="flex:1;min-width:0;">
+      <div style="font-size:11px;letter-spacing:.14em;color:#8a6d2b;font-weight:700;text-transform:uppercase;">${repEsc(Profile.brandLine())}</div>
       <h1 style="font-family:Georgia,serif;font-size:26px;margin:4px 0 6px;color:${REP_GREEN};">Relatório de evolução</h1>
       <div><strong>${repEsc(student.name)}</strong> &nbsp;·&nbsp; Período: ${Utils.formatDateBR(model.from)} a ${Utils.formatDateBR(model.to)}</div>
       <div style="color:#666;">${repProfessor() ? 'Professor: ' + repEsc(repProfessor()) + ' &nbsp;·&nbsp; ' : ''}Emitido em ${Utils.formatDateBR(model.today)}</div>
+      ${Profile.contactLine() ? `<div style="color:#888;font-size:12px;">${repEsc(Profile.contactLine())}</div>` : ''}
+      </div>
     </div>`);
 
   if (opts.message.trim()) {
@@ -429,4 +433,4 @@ function repBindEvents(container) {
 window.ReportView = { renderHtml: repRenderHtml, bindEvents: repBindEvents, whatsText: repWhatsText, buildModel: repBuildModel, html: repHtml };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.14.1';
+(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.16.0';

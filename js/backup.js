@@ -77,6 +77,12 @@ async function importBackup(file) {
     const data = JSON.parse(text);
     await DB.importAll(data);
     Utils.toast('Backup restaurado ✓', 'success');
+    // Recarrega as Configurações (perfil, logo, cor, regras) vindas do backup — antes só
+    // valiam depois de recarregar a página. Quem acabou de restaurar já está usando o app,
+    // então não pede o PIN agora (vale a partir da próxima abertura).
+    AppState.settings = await loadSettings();
+    AppState.pinUnlocked = true;
+    if (!AppState.settings.onboardingDone) await saveSettingsPatch({ onboardingDone: true });
     AppState.students = await StudentsData.listStudents();
     await switchStudent(AppState.students[0]?.id || null);
   } catch (e) {
@@ -87,4 +93,4 @@ async function importBackup(file) {
 window.BackupModule = { exportBackup, importBackup, daysSinceBackup, needsBackupReminder };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.16.0';

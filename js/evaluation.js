@@ -262,8 +262,7 @@ function afBuildAndPrintReport(printArea, student, list) {
   printArea.innerHTML = '';
   printArea.appendChild(Utils.el(`
     <div class="mp-report-header">
-      <h2 style="font-family:Georgia,serif;margin-bottom:2px;">Método Pleno — Relatório de Avaliação Funcional</h2>
-      <div style="color:#555;">Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)</div>
+      ${Profile.docHeaderHtml('Relatório de Avaliação Funcional', `Aluno: ${Utils.escapeHtml(student.name)} &nbsp;·&nbsp; Gerado em ${Utils.formatDateBR(Utils.todayISO())} &nbsp;·&nbsp; ${list.length} avaliação(ões) registrada(s)`)}
     </div>
   `));
 
@@ -340,4 +339,4 @@ function evalBindEvents(container) {
 window.EvaluationView = { renderHtml: evalRenderHtml, bindEvents: evalBindEvents, afterRender: evalAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['evaluation.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['evaluation.js'] = 'v1.16.0';
