@@ -455,3 +455,39 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
     linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(190,215,240,.16) 46%, rgba(255,255,255,.05) 52%, rgba(255,255,255,0) 64%),
     linear-gradient(160deg, #08121F 0%, #13273F 32%, #1E3A5A 58%, #35587E 82%, #1A3350 100%);
 }
+
+/* ---------- Documentos do aluno e assinatura na tela (v1.17.0) ---------- */
+.mp-doc-row{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 0; border-top:1px solid var(--borda); }
+.mp-doc-row__info{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; min-width:0; flex:1 1 260px; }
+.mp-doc-row__title{ font-weight:700; font-size:14px; }
+.mp-doc-row__meta{ font-size:12px; color:var(--texto-suave); }
+.mp-doc-row__actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.mp-doc-history{ margin-top:12px; font-size:13px; }
+.mp-doc-history summary{ cursor:pointer; font-weight:700; color:var(--verde-principal); padding:6px 0; }
+.mp-doc-hist-row{ display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed var(--borda); color:var(--texto-suave); }
+.mp-doc-h{ font-family:'Fraunces',Georgia,serif; font-size:14.5px; color:var(--verde-principal); margin:14px 0 6px; }
+.mp-doc-p{ margin:0 0 10px; }
+.mp-doc-ul{ margin:0 0 8px; padding-left:20px; }
+.mp-doc-ul li{ margin-bottom:5px; }
+
+.mp-sign-overlay{ position:fixed; inset:0; z-index:95; background:rgba(10,18,28,.6); display:flex; justify-content:center; align-items:stretch; padding:12px;
+  font-family:'Manrope',ui-sans-serif,system-ui,sans-serif; color:var(--texto); }
+.mp-sign-sheet{ background:var(--papel); border-radius:var(--radius); width:100%; max-width:760px; display:flex; flex-direction:column; overflow-y:auto; -webkit-overflow-scrolling:touch; box-shadow:0 12px 40px rgba(0,0,0,.35); }
+.mp-sign-head{ position:sticky; top:0; z-index:1; background:var(--papel); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:16px 18px 12px; border-bottom:3px solid var(--dourado); }
+.mp-sign-head h3{ font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:19px; color:var(--verde-principal); margin:2px 0 4px; }
+.mp-sign-eyebrow{ font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dourado-escuro); font-weight:700; }
+.mp-sign-student{ font-size:13px; color:var(--texto-suave); }
+.mp-sign-doc{ flex:none; padding:6px 18px 10px; font-size:14px; line-height:1.55; max-height:none; background:#fff; border-radius:0; }
+.mp-sign-form{ padding:12px 18px 16px; border-top:1px solid var(--borda); background:var(--papel); }
+.mp-sign-q{ font-size:13px; font-weight:700; margin-bottom:6px; }
+.mp-sign-check{ display:flex; gap:8px; align-items:flex-start; font-size:13.5px; line-height:1.45; }
+.mp-sign-check input{ margin-top:3px; width:auto; }
+.mp-sign-pad-label{ display:flex; justify-content:space-between; font-size:12px; color:var(--texto-suave); margin:4px 0 6px; }
+.mp-sign-pad{ display:block; width:100%; height:170px; background:#fff; border:1.5px dashed var(--verde-suave); border-radius:10px; touch-action:none; cursor:crosshair; }
+.mp-sign-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+@media (max-width:520px){
+  .mp-sign-overlay{ padding:0; }
+  .mp-sign-sheet{ border-radius:0; }
+  .mp-sign-doc{ font-size:13.5px; }
+  .mp-sign-pad{ height:150px; }
+}
