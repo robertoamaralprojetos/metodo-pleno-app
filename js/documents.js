@@ -6,7 +6,7 @@
 //   cópia do texto assinado, data/hora, quem assinou e um código de verificação (hash do texto).
 //   Se o texto mudar depois, o app mostra que é preciso colher uma nova assinatura.
 // • Tudo fica no próprio registro do aluno (student.signedDocs), então entra no Backup (JSON).
-// • PDF gerado no aparelho (jsPDF, js/vendor/jspdf.umd.min.js) e compartilhado pelo menu do
+// • PDF gerado no aparelho (jsPDF, js/jspdf.umd.min.js) e compartilhado pelo menu do
 //   celular (WhatsApp etc.) — ou baixado, no computador. Nada é enviado a servidores.
 
 const DOC_TYPES = {
@@ -368,9 +368,9 @@ function loadJsPdf() {
   if (window.jspdf?.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'js/vendor/jspdf.umd.min.js';
+    s.src = 'js/jspdf.umd.min.js';
     s.onload = () => (window.jspdf?.jsPDF ? resolve(window.jspdf.jsPDF) : reject(new Error('gerador de PDF inválido')));
-    s.onerror = () => reject(new Error('arquivo js/vendor/jspdf.umd.min.js não encontrado — envie-o ao GitHub'));
+    s.onerror = () => reject(new Error('arquivo js/jspdf.umd.min.js não encontrado — envie-o ao GitHub'));
     document.head.appendChild(s);
   });
 }
