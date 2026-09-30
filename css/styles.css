@@ -491,3 +491,18 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
   .mp-sign-doc{ font-size:13.5px; }
   .mp-sign-pad{ height:150px; }
 }
+
+/* ---------- Frequência cardíaca (v1.19.0) ---------- */
+.mp-hr-block{ margin-top:12px; padding:12px 14px; border-radius:12px; background:#FBF1EE; border:1px solid #EFD5CC; }
+.mp-hr-title{ font-weight:700; font-size:13px; color:#A24E33; margin-bottom:8px; }
+.mp-hr-grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+.mp-hr-grid .mp-field{ margin:0; }
+.mp-hr-grid label{ font-size:10.5px; }
+.mp-hr-timer{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.mp-hr-timer-out{ font-size:12.5px; color:var(--texto-suave); }
+.mp-hr-rec{ margin-top:8px; font-size:13px; }
+.mp-cardio-details summary{ cursor:pointer; list-style:none; }
+.mp-cardio-details summary::-webkit-details-marker{ display:none; }
+.mp-cardio-details summary::after{ content:' ▾'; color:var(--verde-suave); font-size:14px; }
+.mp-cardio-details[open] summary::after{ content:' ▴'; }
+@media (max-width:620px){ .mp-hr-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
