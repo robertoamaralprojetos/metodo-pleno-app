@@ -3,7 +3,7 @@
 // sem internet). Estratégia: cache-first para assets estáticos, com atualização em
 // segundo plano; index.html sempre disponível offline como fallback de navegação.
 
-const CACHE_VERSION = 'metodo-pleno-v31';
+const CACHE_VERSION = 'metodo-pleno-v32';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const PRECACHE_URLS = [
   './js/db.js',
   './js/evaluation-data.js',
   './js/charts.js',
+  './js/cardio.js',
   './js/rest-timer.js',
   './js/students.js',
   './js/state.js',
@@ -75,6 +76,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  // Lista de bloqueio de licenças: sempre da rede (nunca do cache).
+  if (req.url.includes('licencas-bloqueadas.json')) return;
 
   event.respondWith(
     caches.match(req).then((cached) => {
