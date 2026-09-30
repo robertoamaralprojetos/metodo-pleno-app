@@ -236,6 +236,8 @@ function settingsRenderHtml() {
   ${MonitorView.settingsHtml(s)}
 
   ${settingsPinSectionHtml(s)}
+
+  ${StorageGuard.cardHtml(s)}
   `;
 }
 
@@ -277,6 +279,7 @@ function settingsBindEvents(container) {
   StudentDocs.settingsBind(container);
   MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
+  StorageGuard.bind(container);
 }
 
 window.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
@@ -286,4 +289,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.19.1';

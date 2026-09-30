@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.0';
+const APP_VERSION = 'v1.19.1';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -25,7 +25,7 @@ const MODULE_MIN = {
   'report-logic.js': 'v1.19.0',
   'report.js': 'v1.19.0',
   'pin-lock.js': 'v1.16.0',
-  'settings.js': 'v1.19.0',
+  'settings.js': 'v1.19.1',
   'profile.js': 'v1.18.0',
   'license.js': 'v1.19.0',
   'documents.js': 'v1.17.0',
@@ -40,8 +40,8 @@ const MODULE_MIN = {
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.16.0',
   'physical-evaluation.js': 'v1.16.0',
-  'backup.js': 'v1.18.0',
-  'app.js': 'v1.19.0',
+  'backup.js': 'v1.19.1',
+  'app.js': 'v1.19.1',
 };
 
 function versionParts(v) {
@@ -429,8 +429,10 @@ window.AppShell = { render, guardedPut, setStorageWarning, exportSessionsCsv };
 
 document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
+  // Pede ao navegador para não apagar os dados do app quando faltar espaço (v1.19.1).
+  StorageGuard.request();
   stateInit();
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.1';
