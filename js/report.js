@@ -8,12 +8,13 @@ const REP_SECTIONS = [
   { key: 'freq', label: 'Frequência e dedicação', def: true },
   { key: 'conquistas', label: 'Conquistas', def: true },
   { key: 'forca', label: 'Ficando mais forte (carga e repetições)', def: true },
-  { key: 'esforco', label: 'Percepção de esforço por treino (Borg)', def: false },
+  { key: 'esforco', label: 'Percepção de esforço por treino (Borg)', def: true },
+  { key: 'cardio', label: 'Condicionamento cardiovascular (FC e aeróbico)', def: true },
   { key: 'funcional', label: 'Avaliação funcional (Senior Fitness Test)', def: true },
   { key: 'fase', label: 'Fase atual do treino', def: true },
-  { key: 'fisica', label: 'Avaliação física (peso, IMC, gordura, abdômen)', def: false },
+  { key: 'fisica', label: 'Avaliação física (peso, IMC, gordura, abdômen)', def: true },
   { key: 'postura', label: 'Foco postural do treino (sem fotos)', def: false },
-  { key: 'bemestar', label: 'Bem-estar nas aulas (sono e disposição)', def: false },
+  { key: 'bemestar', label: 'Bem-estar nas aulas (sono e disposição)', def: true },
 ];
 const REP_RANGES = [
   ['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['180', 'Últimos 6 meses'],
@@ -70,6 +71,7 @@ function repBuildModel() {
     const res = PosturalLogic.crossPosture({ evaluation: posturals[0], student, physicalEvaluation: null, templates: [], guidance: null, age: null });
     if (res.strengthen.length) model.posture = { date: posturals[0].date, groups: res.strengthen.slice(0, 3).map((p) => p.label.toLowerCase()) };
   }
+  model.cardio = Cardio.reportModel(AppState.data.sessions, period.from, period.to);
   model.today = today;
   return model;
 }
@@ -193,6 +195,29 @@ function repHtml(model, opts) {
       <div style="margin-top:8px;">${trend}${load}. Média do período: ${repFmt(e.overallAvg)} (${e.count} treinos com nota).</div>`));
   }
 
+  // Condicionamento cardiovascular
+  if (sec.cardio && model.cardio) {
+    const c = model.cardio;
+    const dash = (v) => (v == null ? '—' : repFmt(v));
+    const blocks = [];
+    blocks.push(`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">${repTile(c.aerobicDays, 'treinos aeróbicos')}${repTile(c.totalMin, 'minutos de aeróbico')}${c.totalKm ? repTile(repFmt(c.totalKm), 'km percorridos') : ''}${c.rec1.length ? repTile('−' + c.rec1[c.rec1.length - 1].value, 'bpm de recuperação em 1 min (último)') : ''}</div>`);
+    if (c.rec1.length) {
+      const t = c.rec1Trend;
+      const txt = t && t.last > t.first ? `A frequência cardíaca está <strong>caindo mais rápido</strong> depois do esforço: de −${dash(t.first)} para <strong>−${dash(t.last)} bpm</strong> no primeiro minuto (média dos primeiros e dos últimos treinos) — sinal de melhora do condicionamento.`
+        : `Queda média da frequência cardíaca no primeiro minuto após o treino: <strong>−${dash(t ? t.last : c.rec1[0].value)} bpm</strong>. Quanto maior essa queda, melhor a recuperação do coração.`;
+      blocks.push(`<div style="font-weight:700;margin:4px 0;">Recuperação da frequência cardíaca (1 minuto após o treino)</div>${Cardio.lineSvg(c.rec1, { label: 'Recuperação da FC' })}<div style="margin:6px 0 12px;">${txt}</div>`);
+    }
+    if (c.before.length >= 2) {
+      const t = c.beforeTrend;
+      blocks.push(`<div style="font-weight:700;margin:4px 0;">Frequência cardíaca antes do treino</div>${Cardio.lineSvg(c.before, { color: '#1F3D30', label: 'FC antes do treino' })}<div style="margin:6px 0 12px;">De ${dash(t.first)} para <strong>${dash(t.last)} bpm</strong>${t.last < t.first ? ' — com o treino regular, o coração passa a trabalhar com menos batimentos em repouso.' : '.'}</div>`);
+    }
+    if (c.pace.length >= 2) {
+      const t = c.paceTrend;
+      blocks.push(`<div style="font-weight:700;margin:4px 0;">Ritmo em corrida/caminhada (min/km)</div>${Cardio.lineSvg(c.pace, { color: '#B08D3C', fmt: (v) => fmtMmSs(v * 60), label: 'Ritmo' })}<div style="margin:6px 0 12px;">De ${fmtMmSs(t.first * 60)} para <strong>${fmtMmSs(t.last * 60)} min/km</strong>${t.last < t.first ? ' — mais rápido para a mesma distância.' : '.'}</div>`);
+    }
+    parts.push(repSectionBox('Condicionamento cardiovascular', blocks.join('')));
+  }
+
   // Funcional
   if (sec.funcional && model.functional) {
     const fn = model.functional;
@@ -277,6 +302,13 @@ function repWhatsText(model, opts) {
     const fn = model.functional;
     L.push(`📈 Aptidão funcional: ${fn.previous && fn.previous.complete ? fn.previous.index + ' → ' : ''}${fn.current.index} pontos (${fn.current.classification})`);
   }
+  if (sec.cardio && model.cardio) {
+    const c = model.cardio;
+    if (c.aerobicDays) L.push(`🏃 ${c.aerobicDays} treino(s) aeróbico(s) · ${c.totalMin} min${c.totalKm ? ` · ${repFmt(c.totalKm)} km` : ''}`);
+    if (c.rec1Trend && c.rec1Trend.last > c.rec1Trend.first) L.push(`❤️ Recuperação da FC melhorou: −${repFmt(c.rec1Trend.first)} → −${repFmt(c.rec1Trend.last)} bpm em 1 min`);
+    if (c.beforeTrend && c.beforeTrend.last < c.beforeTrend.first) L.push(`❤️ FC antes do treino: ${repFmt(c.beforeTrend.first)} → ${repFmt(c.beforeTrend.last)} bpm`);
+  }
+  if (sec.esforco && model.effort && model.effort.ok) L.push(`😅 Esforço percebido médio: ${repFmt(model.effort.overallAvg)} (0 a 10)`);
   if (sec.fase && model.phase) L.push(`🎯 Fase atual: ${model.phase.name}`);
   if (sec.conquistas) model.freq.crossedMilestones.forEach((m) => L.push(`🏅 Marca de ${m} treinos alcançada!`));
   if (opts.message.trim()) { L.push(''); L.push(opts.message.trim()); }
@@ -294,7 +326,7 @@ function repRenderHtml() {
   return `
   <div class="mp-card">
     <h3>Relatório de evolução para aluno e família</h3>
-    <div class="mp-sub">Escolha o período e o que incluir. A pré-visualização abaixo é o próprio documento. Por padrão, avaliação física, postura e bem-estar ficam desmarcados, e fotos nunca entram no relatório.</div>
+    <div class="mp-sub">Escolha o período e o que incluir. A pré-visualização abaixo é o próprio documento. Por padrão, todas as informações disponíveis entram (exceto o foco postural), e fotos nunca entram no relatório. Seções sem dados no período são omitidas.</div>
     <div class="mp-form-row mp-row3">
       <div class="mp-field"><label>Período</label><select id="rep-range">${REP_RANGES.map(([v, l]) => `<option value="${v}" ${st.range === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="mp-field" id="rep-custom-from" style="${st.range === 'custom' ? '' : 'display:none;'}"><label>De</label><input type="date" id="rep-from" value="${st.from}"></div>
@@ -433,4 +465,4 @@ function repBindEvents(container) {
 window.ReportView = { renderHtml: repRenderHtml, bindEvents: repBindEvents, whatsText: repWhatsText, buildModel: repBuildModel, html: repHtml };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.19.0';

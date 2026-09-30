@@ -54,8 +54,13 @@ async function loadSettings() {
   return { ...DEFAULT_SETTINGS, ...(existing || {}) };
 }
 
+// Lê o registro GRAVADO antes de salvar (v1.19.0): se houver outra janela/aba do app aberta
+// com uma cópia antiga das configurações na memória, ela não desfaz o que a outra salvou
+// (foi assim que uma chave de licença "sumiu" na v1.18).
 async function saveSettingsPatch(patch) {
-  const merged = { ...DEFAULT_SETTINGS, ...AppState.settings, ...patch, id: 'global' };
+  let stored = null;
+  try { stored = await DB.get(DB.STORES.appSettings, 'global'); } catch (e) { /* usa a memória */ }
+  const merged = { ...DEFAULT_SETTINGS, ...(AppState.settings || {}), ...(stored || {}), ...patch, id: 'global' };
   AppState.settings = merged;
   await DB.put(DB.STORES.appSettings, merged);
   return merged;
@@ -281,4 +286,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.18.0';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.19.0';

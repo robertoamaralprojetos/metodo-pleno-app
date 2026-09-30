@@ -7,29 +7,30 @@ const restLabel = Utils.formatRestLabel;
 // Colunas "Séries×Rep" e "Carga" de um item de plano/ficha — resumo diferente conforme o
 // tipo (força usa séries/reps/carga; aeróbico usa tempo/velocidade/inclinação/carga).
 function planItemDetailCells(it) {
-  if (it.type === 'aerobico') {
-    return `<td>—</td><td>${Utils.escapeHtml(formatAerobicSummary(it))}</td>`;
+  if (!isStrengthType(it.type)) {
+    return `<td>—</td><td>${Utils.escapeHtml(formatNonStrengthSummary(it))}</td>`;
   }
   return `<td>${it.series}×${it.reps}</td><td>${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))}</td>`;
 }
 
 function planItemNameCell(it) {
-  return `${Utils.escapeHtml(it.exerciseName)}${it.type === 'aerobico' ? ' <span class="mp-pill mp-pill-moderado" style="margin-left:4px;">aeróbico</span>' : ''}`;
+  const tag = trainingTypeShort(it.type, it.trainingTypeCustom);
+  return `${Utils.escapeHtml(it.exerciseName)}${tag ? ` <span class="mp-pill mp-pill-moderado" style="margin-left:4px;">${Utils.escapeHtml(tag)}</span>` : ''}`;
 }
 
 // Bloco de formulário reutilizável (Planejar Aula do dia + Fichas de treino): toggle
 // Força/Aeróbico, com os campos correspondentes. idPrefix distingue os ids na página
 // (ex: "mp-p" para o plano do dia, "mp-t" para a ficha-modelo).
 function exerciseItemFormHtml(idPrefix, editingItem, elasticColors, datalistId) {
-  const type = editingItem?.type === 'aerobico' ? 'aerobico' : 'forca';
+  const type = editingItem?.type && TRAINING_TYPE_OPTIONS.some((o) => o.value === editingItem.type) ? editingItem.type : 'forca';
   const forcaItem = type === 'forca' ? editingItem : null;
   const aerobicoItem = type === 'aerobico' ? editingItem : null;
+  const genericItem = isGenericType(type) ? editingItem : null;
   return `
     <div class="mp-field" style="max-width:260px;">
       <label>Tipo de treino</label>
       <select id="${idPrefix}-tipo">
-        <option value="forca" ${type === 'forca' ? 'selected' : ''}>Força (musculação)</option>
-        <option value="aerobico" ${type === 'aerobico' ? 'selected' : ''}>Aeróbico</option>
+        ${TRAINING_TYPE_OPTIONS.map((o) => `<option value="${o.value}" ${type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
       </select>
     </div>
     <div id="${idPrefix}-forca-fields" style="${type === 'forca' ? '' : 'display:none;'}">
@@ -54,7 +55,12 @@ function exerciseItemFormHtml(idPrefix, editingItem, elasticColors, datalistId) 
     </div>
     <div id="${idPrefix}-aerobico-fields" style="${type === 'aerobico' ? '' : 'display:none;'}">
       <div class="mp-form-row mp-row4">
-        ${aerobicFieldHtml(idPrefix, aerobicoItem)}
+        ${aerobicFieldHtml(idPrefix, aerobicoItem, { zone: true })}
+      </div>
+    </div>
+    <div id="${idPrefix}-generic-fields" style="${isGenericType(type) ? '' : 'display:none;'}">
+      <div class="mp-form-row mp-row3">
+        ${genericFieldHtml(idPrefix, type, genericItem)}
       </div>
     </div>
   `;
@@ -67,6 +73,12 @@ function bindExerciseItemFormEvents(container, idPrefix) {
   typeSelect?.addEventListener('change', () => {
     if (forcaWrap) forcaWrap.style.display = typeSelect.value === 'forca' ? '' : 'none';
     if (aerobicoWrap) aerobicoWrap.style.display = typeSelect.value === 'aerobico' ? '' : 'none';
+    const genericWrap = container.querySelector(`#${idPrefix}-generic-fields`);
+    if (genericWrap) genericWrap.style.display = isGenericType(typeSelect.value) ? '' : 'none';
+    const customWrap = container.querySelector(`#${idPrefix}-g-custom-wrap`);
+    if (customWrap) customWrap.style.display = typeSelect.value === 'outro' ? '' : 'none';
+    const nameInput = container.querySelector(`#${idPrefix}-g-name`);
+    if (nameInput && GENERIC_PLACEHOLDERS[typeSelect.value]) nameInput.placeholder = GENERIC_PLACEHOLDERS[typeSelect.value];
   });
   bindUnitFieldEvents(container, idPrefix);
   bindAerobicFieldEvents(container, idPrefix);
@@ -85,11 +97,21 @@ function readExerciseItemForm(container, idPrefix) {
       aerobicType: aerobic.aerobicType,
       aerobicTypeCustom: aerobic.aerobicTypeCustom,
       durationMinutes: aerobic.durationMinutes,
+      distanceKm: aerobic.distanceKm,
+      t1Seconds: aerobic.t1Seconds,
+      t2Seconds: aerobic.t2Seconds,
+      rounds: aerobic.rounds,
       speed: aerobic.speed,
       incline: aerobic.incline,
       load: aerobic.load,
+      hrZone: aerobic.hrZone || null,
       restSeconds: 0,
     };
+  }
+  if (isGenericType(type)) {
+    const g = readGenericFieldValues(container, idPrefix, type);
+    if (type === 'outro' && !g.trainingTypeCustom) return { error: 'Informe qual é o tipo de treino.' };
+    return { type, ...g, restSeconds: 0 };
   }
   const exerciseName = container.querySelector(`#${idPrefix}-exercicio`).value.trim();
   if (!exerciseName) return { error: 'Preencha o nome do exercício.' };
@@ -133,7 +155,7 @@ function planRenderHtml() {
       <td>${i + 1}</td>
       <td>${planItemNameCell(it)}</td>
       ${planItemDetailCells(it)}
-      <td>${it.type === 'aerobico' ? '—' : restLabel(it.restSeconds)}</td>
+      <td>${!isStrengthType(it.type) ? '—' : restLabel(it.restSeconds)}</td>
       <td>${it.completed ? '<span class="mp-pill mp-pill-leve">concluído</span>' : '<span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">pendente</span>'}</td>
       <td style="white-space:nowrap;">
         <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-planitem="${it.id}" type="button">${it.id === editingId ? 'Editando…' : 'Editar'}</button>
@@ -144,7 +166,7 @@ function planRenderHtml() {
   const printRows = itens.map((it, i) => `
     <tr>
       <td>${i + 1}. ${Utils.escapeHtml(it.exerciseName)}</td>
-      <td>${it.type === 'aerobico' ? Utils.escapeHtml(formatAerobicSummary(it)) : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · desc: ${restLabel(it.restSeconds)}`}</td>
+      <td>${!isStrengthType(it.type) ? Utils.escapeHtml(formatNonStrengthSummary(it)) : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · desc: ${restLabel(it.restSeconds)}`}</td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
       <td class="mp-print-blank"></td>
@@ -163,7 +185,7 @@ function planRenderHtml() {
       <td>${i + 1}</td>
       <td>${planItemNameCell(it)}</td>
       ${planItemDetailCells(it)}
-      <td>${it.type === 'aerobico' ? '—' : restLabel(it.restSeconds)}</td>
+      <td>${!isStrengthType(it.type) ? '—' : restLabel(it.restSeconds)}</td>
       <td style="white-space:nowrap;">
         <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-fichaitem="${it.id}" type="button">${it.id === fichaEditingId ? 'Editando…' : 'Editar'}</button>
         ${ProgressionView.adjustButtonHtml(it)}
@@ -281,6 +303,8 @@ function planRenderHtml() {
     ${ProgressionView.oneRmSectionHtml(fichaLetter, student, templateItems)}
   </div>
 
+  ${Cardio.cardHtml(student, 'cd-plan')}
+
   <div id="mp-print-area" class="mp-print-only">
     ${Profile.docHeaderHtml('Plano de Aula', `Aluno: ${Utils.escapeHtml(currentStudent()?.name || '')} &nbsp;·&nbsp; Data: ${fmtDate(planDate)}${plan?.ficha ? ` &nbsp;·&nbsp; Ficha ${plan.ficha}` : ''}`)}
     <table class="mp-print-table">
@@ -291,6 +315,7 @@ function planRenderHtml() {
 }
 
 function planBindEvents(container) {
+  Cardio.cardBind(container, currentStudent(), 'cd-plan');
   const planDateInput = container.querySelector('#mp-plan-date');
   if (planDateInput) planDateInput.addEventListener('change', () => { AppState.planDate = planDateInput.value; AppState.planEditItemId = null; render(); });
 
@@ -467,4 +492,4 @@ function planBindEvents(container) {
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.0';

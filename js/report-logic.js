@@ -91,7 +91,7 @@ function reportFrequency(sessions, from, to) {
 // ---------- Evolução de carga ----------
 function reportStrength(sessions, from, to) {
   const ML = window.MonitorLogic;
-  const force = sessions.filter((s) => s.type !== 'aerobico');
+  const force = sessions.filter((s) => isStrengthType(s.type));
   const names = new Map();
   force.forEach((s) => { if (s.date >= from && s.date <= to) names.set(s.exerciseName.trim().toLowerCase(), s.exerciseName); });
   let evaluated = 0;
@@ -169,7 +169,7 @@ function reportWellbeing(checkins, from, to) {
 
 // ---------- Percepção de esforço (Borg) por treino ----------
 // Média do Borg de cada treino (modo "por exercício" ou "treino geral", como no Dashboard),
-// com média móvel de 3 treinos. Precisa de pelo menos 6 treinos com Borg no período; abaixo
+// com média móvel de 3 treinos. Precisa de pelo menos 3 treinos com Borg no período; abaixo
 // disso devolve { ok: false, count } e o relatório omite a seção.
 function reportEffort(sessions, dailyMeta, from, to, strength) {
   const dates = Array.from(new Set(sessions.filter((s) => s.date >= from && s.date <= to).map((s) => s.date))).sort();
@@ -177,7 +177,7 @@ function reportEffort(sessions, dailyMeta, from, to, strength) {
     .map((date) => ({ date, value: window.computeDailyBorg(sessions, dailyMeta || [], date) }))
     .filter((p) => p.value != null)
     .map((p) => ({ date: p.date, value: r1(p.value) }));
-  if (points.length < 6) return { ok: false, count: points.length };
+  if (points.length < 3) return { ok: false, count: points.length };
   const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
   points.forEach((p, i) => { p.avg = r1(mean(points.slice(Math.max(0, i - 2), i + 1).map((q) => q.value))); });
   const firstAvg = r1(mean(points.slice(0, 3).map((p) => p.value)));
@@ -230,4 +230,4 @@ function computeReport(input) {
 window.ReportLogic = { REPORT_MILESTONES, reportPeriod, reportFrequency, reportStrength, reportFunctional, reportPhysical, reportWellbeing, reportEffort, reportAchievements, computeReport, rAddDays, rDiff };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.14.1';
+(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.19.0';

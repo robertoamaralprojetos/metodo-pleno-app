@@ -57,12 +57,76 @@ function licToday() {
   return last > today ? last : today;
 }
 
-async function licEvaluate() {
-  const s = AppState.settings || {};
-  const info = s.licenseKey ? await licVerifyKey(s.licenseKey) : null;
+// Cópia de segurança da chave neste navegador (v1.19.0). Se a chave sumir das Configurações
+// (ex.: sobrescrita por uma janela antiga do app), ela é recuperada sem pedir de novo.
+const LICENSE_LS_KEY = 'mp-license-key';
+function licBackupRead() { try { return localStorage.getItem(LICENSE_LS_KEY) || ''; } catch (e) { return ''; } }
+function licBackupWrite(key) { try { if (key) localStorage.setItem(LICENSE_LS_KEY, key); } catch (e) { /* sem armazenamento: segue */ } }
+
+// Lista de bloqueio (v1.19.0): arquivo licencas-bloqueadas.json na raiz do site, com os
+// códigos das licenças suspensas (ex.: cliente mensal que parou de pagar). O app confere a
+// lista sempre que há internet (no máximo a cada 6 h, ou ao voltar para o app) e guarda o
+// resultado — então o bloqueio continua valendo mesmo offline. Tirar o código da lista
+// libera a licença de novo na próxima conferência.
+const LICENSE_BLOCKLIST_URL = 'licencas-bloqueadas.json';
+const LICENSE_BLOCKLIST_EVERY_MS = 6 * 60 * 60 * 1000;
+function licBlockedIds() {
+  const ids = AppState.settings?.licenseBlocklist?.ids;
+  return Array.isArray(ids) ? ids.map((x) => String(x).trim().toUpperCase()) : [];
+}
+function licIsBlocked(info) { return !!(info && info.id && licBlockedIds().includes(String(info.id).toUpperCase())); }
+
+let licRemoteBusy = false;
+async function licRefreshBlocklist(force) {
+  if (licRemoteBusy || !navigator.onLine) return;
+  const last = AppState.settings?.licenseBlocklist?.at || 0;
+  // Licença suspensa: confere sempre (para liberar logo após o pagamento).
+  if (!force && License.status !== 'blocked' && Date.now() - last < LICENSE_BLOCKLIST_EVERY_MS) return;
+  licRemoteBusy = true;
+  try {
+    const res = await fetch(`${LICENSE_BLOCKLIST_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    let ids = [];
+    if (res.ok) {
+      const data = await res.json();
+      ids = Array.isArray(data) ? data : (data.bloqueadas || []);
+    } else if (res.status !== 404) {
+      return; // erro temporário: mantém o que já sabia
+    }
+    const before = License.status;
+    await saveSettingsPatch({ licenseBlocklist: { at: Date.now(), ids: ids.map((x) => String(x).trim().toUpperCase()).filter(Boolean) } });
+    await licEvaluate(true);
+    if (License.status !== before && typeof render === 'function') render();
+  } catch (e) {
+    /* sem conexão ou arquivo inválido: tenta de novo depois */
+  } finally {
+    licRemoteBusy = false;
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && License.ready) licRefreshBlocklist(false); });
+window.addEventListener('online', () => { if (License.ready) licRefreshBlocklist(false); });
+
+async function licEvaluate(skipRemote) {
+  let s = AppState.settings || {};
+  // Escolhe, entre a chave salva e a cópia de segurança, a válida com validade mais longa.
+  const candidates = Array.from(new Set([s.licenseKey, licBackupRead()].filter(Boolean)));
+  let best = null;
+  for (const k of candidates) {
+    const inf = await licVerifyKey(k);
+    if (!inf) continue;
+    const blocked = licIsBlocked(inf);
+    // Preferência: não bloqueada > bloqueada; depois, a de validade mais longa.
+    if (!best || (best.blocked && !blocked) || (best.blocked === blocked && inf.expires > best.info.expires)) best = { key: k, info: inf, blocked };
+  }
+  if (best && best.key !== s.licenseKey) {
+    try { await saveSettingsPatch({ licenseKey: best.key }); } catch (e) { AppState.settings = { ...s, licenseKey: best.key }; }
+    s = AppState.settings;
+  }
+  if (best) licBackupWrite(best.key);
+  const info = best ? best.info : (s.licenseKey ? await licVerifyKey(s.licenseKey) : null);
   License.info = info;
   if (!s.licenseKey) { License.status = 'none'; License.daysLeft = null; }
   else if (!info) { License.status = 'invalid'; License.daysLeft = null; }
+  else if (licIsBlocked(info)) { License.status = 'blocked'; License.daysLeft = null; }
   else {
     const today = licToday();
     const days = Utils.daysUntil(info.expires) + (today === Utils.todayISO() ? 0 : -((new Date(today) - new Date(Utils.todayISO())) / 86400000));
@@ -77,11 +141,12 @@ async function licEvaluate() {
     try { await saveSettingsPatch({ licenseLastSeen: today }); } catch (e) { /* não bloqueia */ }
   }
   License.ready = true;
+  if (!skipRemote && License.info) licRefreshBlocklist(false);
 }
 
 function licAllowsUse() { return ['valid', 'warning', 'grace'].includes(License.status); }
-function licLockedName() { return licAllowsUse() || License.status === 'expired' ? (License.info?.name || '') : ''; }
-function licLockedCref() { return licAllowsUse() || License.status === 'expired' ? (License.info?.cref || '') : ''; }
+function licLockedName() { return licAllowsUse() || ['expired', 'blocked'].includes(License.status) ? (License.info?.name || '') : ''; }
+function licLockedCref() { return licAllowsUse() || ['expired', 'blocked'].includes(License.status) ? (License.info?.cref || '') : ''; }
 
 async function licActivate(key) {
   const info = await licVerifyKey(key);
@@ -89,8 +154,10 @@ async function licActivate(key) {
   const patch = { licenseKey: String(key).replace(/\s+/g, ''), headerProfessionalName: info.name };
   if (info.cref) patch.profCref = info.cref;
   await saveSettingsPatch(patch);
+  licBackupWrite(patch.licenseKey);
   await licEvaluate();
   if (License.status === 'expired') return { ok: false, msg: `Esta chave venceu em ${Utils.formatDateBR(info.expires)}. Solicite a renovação.` };
+  if (License.status === 'blocked') return { ok: false, msg: 'Esta licença está suspensa. Fale com o fornecedor do app para regularizar.' };
   return { ok: true, info };
 }
 
@@ -109,8 +176,10 @@ function licSellerHtml() {
 function licScreenHtml() {
   const esc = Utils.escapeHtml;
   const st = License.status;
-  const title = st === 'expired' ? 'Licença vencida' : st === 'invalid' ? 'Chave de licença inválida' : 'Ativar o Método Pleno';
-  const msg = st === 'expired'
+  const title = st === 'expired' ? 'Licença vencida' : st === 'blocked' ? 'Licença suspensa' : st === 'invalid' ? 'Chave de licença inválida' : 'Ativar o Método Pleno';
+  const msg = st === 'blocked'
+    ? `A licença de <strong>${esc(License.info.name)}</strong> está suspensa (código ${esc(License.info.id)}). Seus dados continuam salvos neste aparelho — regularize a assinatura para voltar a usar o app, ou insira uma nova chave.`
+    : st === 'expired'
     ? `A licença de <strong>${esc(License.info.name)}</strong> venceu em ${Utils.formatDateBR(License.info.expires)}. Seus dados continuam salvos neste aparelho — insira a chave renovada para voltar a usar o app.`
     : st === 'invalid'
       ? 'A chave salva neste aparelho não é válida. Insira uma chave de licença válida.'
@@ -206,4 +275,4 @@ Object.assign(License, {
 window.License = License;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.18.1';
+(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.19.0';

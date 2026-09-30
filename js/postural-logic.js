@@ -197,7 +197,7 @@ function coverageFromTemplates(templates) {
   let pull = 0;
   const unclassified = [];
   (templates || []).forEach((t) => (t.items || []).forEach((it) => {
-    if (it.type === 'aerobico') return;
+    if (!isStrengthType(it.type)) return;
     const c = classifyExercise(it.exerciseName);
     if (!c) { if (it.exerciseName && !unclassified.includes(it.exerciseName)) unclassified.push(it.exerciseName); return; }
     const n = Number(it.series) || 0;
@@ -369,4 +369,4 @@ window.PosturalLogic = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['postural-logic.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['postural-logic.js'] = 'v1.19.0';

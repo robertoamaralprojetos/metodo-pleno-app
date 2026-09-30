@@ -79,13 +79,14 @@ function execRenderHtml() {
   const sorted = [...AppState.data.sessions].sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
 
   const rows = sorted.map((s) => {
-    const detailCells = s.type === 'aerobico'
-      ? `<td>—</td><td>${Utils.escapeHtml(formatAerobicSummary(s))}</td>`
+    const hr = Cardio.hrSummary(s);
+    const detailCells = !isStrengthType(s.type)
+      ? `<td>—</td><td>${Utils.escapeHtml(formatNonStrengthSummary(s))}${hr ? `<div style="font-size:11.5px;color:#A24E33;margin-top:2px;">❤️ ${Utils.escapeHtml(hr)}</div>` : ''}</td>`
       : `<td>${s.series}×${s.reps}</td><td>${s.load} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}</td>`;
     return `
     <tr>
       <td>${Utils.formatDateBR(s.date)}</td>
-      <td>${Utils.escapeHtml(s.exerciseName)}${s.type === 'aerobico' ? ' <span class="mp-pill mp-pill-moderado" style="margin-left:4px;">aeróbico</span>' : ''}</td>
+      <td>${Utils.escapeHtml(s.exerciseName)}${trainingTypeShort(s.type, s.trainingTypeCustom) ? ` <span class="mp-pill mp-pill-moderado" style="margin-left:4px;">${Utils.escapeHtml(trainingTypeShort(s.type, s.trainingTypeCustom))}</span>` : ''}</td>
       ${detailCells}
       <td>${s.borg != null ? `<span class="mp-pill ${borgPillClass(s.borg)}">${s.borg} · ${BORG_LABELS[s.borg]}</span>` : '<span style="color:var(--texto-suave);">— (treino geral)</span>'}</td>
       <td style="max-width:180px;color:var(--texto-suave);font-size:12.5px;">${Utils.escapeHtml(s.notes || '')}</td>
@@ -104,21 +105,19 @@ function execRenderHtml() {
 
   const checklistCards = pendentes.map((it) => {
     const isAerobico = it.type === 'aerobico';
-    const aerobicFields = isAerobico ? aerobicFieldsFor(it.aerobicType) : null;
-    const detailInputs = isAerobico ? `
-        <div class="mp-field"><label>Tempo (min)</label><input type="number" min="0" step="1" id="mp-real-duration-${it.id}" value="${it.durationMinutes ?? ''}"></div>
-        ${aerobicFields.speed ? `<div class="mp-field"><label>Velocidade (km/h)</label><input type="number" min="0" step="0.1" id="mp-real-speed-${it.id}" value="${it.speed ?? ''}"></div>` : ''}
-        ${aerobicFields.incline ? `<div class="mp-field"><label>Inclinação (%)</label><input type="number" min="0" step="0.5" id="mp-real-incline-${it.id}" value="${it.incline ?? ''}"></div>` : ''}
-        ${aerobicFields.load ? `<div class="mp-field"><label>Carga/Resistência</label><input type="number" min="0" step="0.5" id="mp-real-load-${it.id}" value="${it.load ?? ''}"></div>` : ''}
-      ` : `
+    const isStrength = isStrengthType(it.type);
+    const rx = `mp-rx-${it.id}`;
+    const detailInputs = isAerobico
+      ? aerobicFieldHtml(rx, it, { lockType: true })
+      : !isStrength ? genericFieldHtml(rx, it.type, it, { lockType: true }) : `
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
         <div class="mp-field"><label>Carga</label><input type="number" min="0" step="0.5" id="mp-real-carga-${it.id}" value="${it.load}"></div>
       `;
-    const alvoText = isAerobico ? formatAerobicSummary(it) : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}`;
+    const alvoText = !isStrength ? formatNonStrengthSummary({ ...it, hrZone: null }) + (it.hrZone ? ` · ${Cardio.zoneShort(it.hrZone, currentStudent())}` : '') : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}`;
     return `
     <div class="mp-check-card" id="mp-check-${it.id}">
-      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}${isAerobico ? ' <span class="mp-pill mp-pill-moderado">aeróbico</span>' : ''}${it.origin === 'avulso' ? ' <span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">avulso</span>' : ''}<span class="mp-check-alvo">alvo: ${alvoText}</span></div>
+      <div class="mp-check-title">${Utils.escapeHtml(it.exerciseName)}${!isStrength ? ` <span class="mp-pill mp-pill-moderado">${Utils.escapeHtml(trainingTypeShort(it.type, it.trainingTypeCustom))}</span>` : ''}${it.origin === 'avulso' ? ' <span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">avulso</span>' : ''}<span class="mp-check-alvo">alvo: ${alvoText}</span></div>
       <div class="mp-check-row">
         ${detailInputs}
         ${isOverallMode ? '' : `
@@ -131,7 +130,8 @@ function execRenderHtml() {
         <label>Observações (opcional)</label>
         <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc.">${Utils.escapeHtml(it.notes || '')}</textarea>
       </div>
-      ${isAerobico ? '' : `
+      ${!isStrength ? Cardio.hrBlockHtml(rx) : ''}
+      ${!isStrength ? '' : `
       <div class="mp-timer" data-item-id="${it.id}">
         <div class="mp-timer-display" id="mp-timer-display-${it.id}">${Utils.formatMMSS(defaultRestSeconds(it))}</div>
         <div class="mp-timer-controls">
@@ -157,6 +157,7 @@ function execRenderHtml() {
   return `
   ${MonitorView.bannerHtml()}
   ${CheckinView.cardHtml(execDate)}
+  ${Cardio.cardHtml(currentStudent(), 'cd-exec').replace('<div class="mp-card" style="margin-top:20px;">', '<div class="mp-card" style="margin-bottom:20px;">')}
   <div class="mp-card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <h3 style="margin-bottom:0;">Executar plano da aula</h3>
@@ -303,12 +304,9 @@ function execBindEvents(container) {
       const realObs = container.querySelector('#mp-real-obs-' + itemId)?.value.trim() || '';
 
       let session;
+      const rx = 'mp-rx-' + itemId;
       if (item.type === 'aerobico') {
-        const fields = aerobicFieldsFor(item.aerobicType);
-        const durationMinutes = Number(container.querySelector('#mp-real-duration-' + itemId)?.value) || 0;
-        const speed = fields.speed ? (Number(container.querySelector('#mp-real-speed-' + itemId)?.value) || 0) : null;
-        const incline = fields.incline ? (Number(container.querySelector('#mp-real-incline-' + itemId)?.value) || 0) : null;
-        const load = fields.load ? (Number(container.querySelector('#mp-real-load-' + itemId)?.value) || 0) : null;
+        const a = readAerobicFieldValues(container, rx);
         session = {
           id: dbUuid(),
           ts: Date.now(),
@@ -318,10 +316,34 @@ function execBindEvents(container) {
           exerciseName: item.exerciseName,
           aerobicType: item.aerobicType,
           aerobicTypeCustom: item.aerobicTypeCustom,
-          durationMinutes,
-          speed,
-          incline,
-          load,
+          durationMinutes: a.durationMinutes,
+          distanceKm: a.distanceKm,
+          t1Seconds: a.t1Seconds,
+          t2Seconds: a.t2Seconds,
+          rounds: a.rounds,
+          speed: a.speed,
+          incline: a.incline,
+          load: a.load,
+          hrZone: item.hrZone || null,
+          ...Cardio.hrBlockRead(container, rx),
+          borg: realBorg,
+          notes: realObs,
+          planItemId: item.id,
+        };
+      } else if (!isStrengthType(item.type)) {
+        const g = readGenericFieldValues(container, rx, item.type);
+        session = {
+          id: dbUuid(),
+          ts: Date.now(),
+          studentId: AppState.currentId,
+          date: AppState.execDate,
+          type: item.type,
+          trainingTypeCustom: item.trainingTypeCustom || '',
+          exerciseName: item.exerciseName,
+          durationMinutes: g.durationMinutes,
+          series: g.series,
+          reps: g.reps,
+          ...Cardio.hrBlockRead(container, rx),
           borg: realBorg,
           notes: realObs,
           planItemId: item.id,
@@ -361,6 +383,9 @@ function execBindEvents(container) {
   });
 
   bindExerciseItemFormEvents(container, 'mp-f');
+  Cardio.cardBind(container, currentStudent(), 'cd-exec');
+  const planToday = getPlanByDate(AppState.execDate);
+  (planToday ? planToday.items : []).filter((it) => !it.completed && !isStrengthType(it.type)).forEach((it) => Cardio.hrBlockBind(container, 'mp-rx-' + it.id));
 
   const form = container.querySelector('#mp-session-form');
   if (form) {
@@ -400,4 +425,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.0';

@@ -45,7 +45,7 @@ function bindReviewDateEvents(container, fichaLetter) {
 // ---------- Teste de 1RM ----------
 
 function oneRmSectionHtml(fichaLetter, student, templateItems) {
-  const forcaItems = templateItems.filter((it) => it.type !== 'aerobico');
+  const forcaItems = templateItems.filter((it) => isStrengthType(it.type));
   if (!forcaItems.length) {
     return `<div class="mp-sub" style="margin-top:14px;">Adicione exercícios de força à Ficha ${fichaLetter} acima para poder testar o 1RM.</div>`;
   }
@@ -141,7 +141,7 @@ function bindOneRmEvents(container, fichaLetter) {
 // ---------- Ajuste hierárquico (reps → séries → descanso → carga) ----------
 
 function adjustButtonHtml(item) {
-  if (item.type === 'aerobico') return '';
+  if (!isStrengthType(item.type)) return '';
   return `<button class="mp-btn mp-btn-ghost mp-btn-sm" data-adjust-open="${item.id}" type="button">🔧 Ajustar</button>`;
 }
 
@@ -264,4 +264,4 @@ window.ProgressionView = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['progression.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['progression.js'] = 'v1.19.0';

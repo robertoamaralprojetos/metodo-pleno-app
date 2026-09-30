@@ -201,8 +201,60 @@ function readUnitFieldValues(container, idPrefix) {
   return { unit, unitDetail };
 }
 
-// ---------- Treino aeróbico (Planejar Aula + Registro de Treino) ----------
+// ---------- Tipos de treino (Planejar Aula + Registro de Treino) ----------
+// "forca" e "aerobico" têm campos próprios; os demais (funcional, localizada, pilates,
+// outro) usam um bloco genérico: atividade, tempo e, opcionalmente, séries × repetições.
+const TRAINING_TYPE_OPTIONS = [
+  { value: 'forca', label: 'Força (musculação)' },
+  { value: 'aerobico', label: 'Aeróbico' },
+  { value: 'funcional', label: 'Treinamento Funcional' },
+  { value: 'localizada', label: 'Ginástica Localizada' },
+  { value: 'pilates', label: 'Pilates' },
+  { value: 'outro', label: 'Outros' },
+];
+const GENERIC_TRAINING_TYPES = ['funcional', 'localizada', 'pilates', 'outro'];
+
+// Força = tudo que entra em carga/platô/deload/1RM. Registros antigos sem "type" são força.
+function isStrengthType(type) { return !type || type === 'forca'; }
+function isGenericType(type) { return GENERIC_TRAINING_TYPES.includes(type); }
+function trainingTypeLabel(type, custom) {
+  if (type === 'outro') return custom || 'Outros';
+  return TRAINING_TYPE_OPTIONS.find((o) => o.value === (type || 'forca'))?.label || type;
+}
+function trainingTypeShort(type, custom) {
+  return ({ aerobico: 'aeróbico', funcional: 'funcional', localizada: 'localizada', pilates: 'pilates' })[type] || (type === 'outro' ? (custom || 'outro').toLowerCase() : '');
+}
+
+// Tempo "mm:ss" (ou só minutos, aceita decimal) ⇄ segundos.
+function parseMmSs(v) {
+  const t = String(v ?? '').trim().replace(',', '.');
+  if (!t) return null;
+  if (t.includes(':')) {
+    const [m, sec] = t.split(':');
+    const total = (parseInt(m, 10) || 0) * 60 + (parseInt(sec, 10) || 0);
+    return total > 0 ? total : null;
+  }
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 60) : null;
+}
+function fmtMmSs(seconds) {
+  if (seconds == null || seconds === '') return '';
+  const s = Math.round(Number(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+// Ritmo (pace) em min/km a partir de minutos e km.
+function paceLabel(durationMinutes, distanceKm) {
+  const d = Number(distanceKm); const t = Number(durationMinutes);
+  if (!d || !t) return '';
+  return `${fmtMmSs((t * 60) / d)} min/km`;
+}
+
+// ---------- Treino aeróbico ----------
 const AEROBIC_TYPE_OPTIONS = [
+  { value: 'corridaLivre', label: 'Corrida ao ar livre' },
+  { value: 'caminhadaLivre', label: 'Caminhada ao ar livre' },
+  { value: 'intervaladoCaminhadaCorrida', label: 'Intervalado caminhada/corrida' },
+  { value: 'intervaladoCorrida', label: 'Treino de corrida intervalado' },
   { value: 'esteira', label: 'Esteira' },
   { value: 'bicicletaErgometrica', label: 'Bicicleta Ergométrica' },
   { value: 'bicicletaSpinning', label: 'Bicicleta de Spinning' },
@@ -216,30 +268,55 @@ function aerobicTypeLabel(type, custom) {
   return AEROBIC_TYPE_OPTIONS.find((o) => o.value === type)?.label || type;
 }
 
-// Quais campos de intensidade fazem sentido por tipo: esteira usa velocidade/inclinação;
-// bicicletas/elíptico/outros usam carga (resistência).
+// Quais campos fazem sentido por tipo de aeróbico.
 function aerobicFieldsFor(type) {
-  return { speed: type === 'esteira', incline: type === 'esteira', load: type !== 'esteira' && !!type };
+  const outdoor = type === 'corridaLivre' || type === 'caminhadaLivre';
+  const interval = type === 'intervaladoCaminhadaCorrida' || type === 'intervaladoCorrida';
+  return {
+    duration: !!type,
+    speed: type === 'esteira',
+    incline: type === 'esteira',
+    load: ['bicicletaErgometrica', 'bicicletaSpinning', 'eliptico', 'outros'].includes(type),
+    distance: outdoor || interval,
+    interval,
+    t1Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de caminhada (mm:ss)' : 'Tempo 1 · estímulo (mm:ss)',
+    t2Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de corrida (mm:ss)' : 'Tempo 2 · recuperação (mm:ss)',
+  };
 }
 
-// Resumo textual (usado nas tabelas — plano, checklist, histórico, impressão) já que o
-// treino aeróbico não tem "séries×rep"/"carga" no mesmo sentido do treino de força.
+// Resumo textual (tabelas do plano, checklist, histórico, impressão, relatório).
 function formatAerobicSummary(item) {
   const parts = [];
-  if (item.durationMinutes != null && item.durationMinutes !== '') parts.push(`${item.durationMinutes} min`);
+  if (item.rounds && (item.t1Seconds || item.t2Seconds)) {
+    const a = fmtMmSs(item.t1Seconds) || '0:00';
+    const b = fmtMmSs(item.t2Seconds) || '0:00';
+    parts.push(item.aerobicType === 'intervaladoCaminhadaCorrida' ? `${item.rounds}× (${a} caminhada + ${b} corrida)` : `${item.rounds}× (${a} + ${b})`);
+  }
+  if (item.durationMinutes != null && item.durationMinutes !== '' && Number(item.durationMinutes) > 0) parts.push(`${Math.round(item.durationMinutes * 10) / 10} min`);
+  if (item.distanceKm) parts.push(`${String(item.distanceKm).replace('.', ',')} km`);
+  const pace = paceLabel(item.durationMinutes, item.distanceKm);
+  if (pace) parts.push(pace);
   if (item.speed != null && item.speed !== '') parts.push(`${item.speed} km/h`);
   if (item.incline != null && item.incline !== '') parts.push(`${item.incline}% inclin.`);
   if (item.load != null && item.load !== '') parts.push(`carga ${item.load}`);
+  if (item.hrZone && window.Cardio) parts.push(Cardio.zoneShort(item.hrZone));
   return parts.join(' · ') || '—';
 }
 
-// Bloco reutilizável de campos de treino aeróbico (Planejar Aula, checklist do dia e
-// exercício avulso), com campos condicionais conforme o tipo escolhido.
-function aerobicFieldHtml(idPrefix, values) {
+// Bloco de campos do aeróbico. opts.lockType: tipo fixo (Registro de Treino) — o seletor
+// vira um campo oculto; opts.zone: mostra o seletor de zona de FC alvo (Planejar Aula).
+function aerobicFieldHtml(idPrefix, values, opts = {}) {
   values = values || {};
   const type = values.aerobicType || '';
-  const fields = aerobicFieldsFor(type);
+  const f = aerobicFieldsFor(type);
+  const show = (on) => (on ? '' : 'display:none;');
+  const zoneSelect = opts.zone && window.Cardio ? `
+    <div class="mp-field">
+      <label>Zona de FC alvo (opcional)</label>
+      <select id="${idPrefix}-aerobic-zone"><option value="">—</option>${Cardio.ZONES.map((z) => `<option value="${z.key}" ${values.hrZone === z.key ? 'selected' : ''}>${Utils.escapeHtml(z.key.toUpperCase() + ' · ' + z.pct[0] + '–' + z.pct[1] + '% · ' + z.name)}</option>`).join('')}</select>
+    </div>` : '';
   return `
+    ${opts.lockType ? `<input type="hidden" id="${idPrefix}-aerobic-type" value="${Utils.escapeHtml(type)}"><input type="hidden" id="${idPrefix}-aerobic-custom" value="${Utils.escapeHtml(values.aerobicTypeCustom || '')}">` : `
     <div class="mp-field">
       <label>Tipo de treino aeróbico</label>
       <select id="${idPrefix}-aerobic-type">
@@ -247,54 +324,125 @@ function aerobicFieldHtml(idPrefix, values) {
         ${AEROBIC_TYPE_OPTIONS.map((o) => `<option value="${o.value}" ${type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
       </select>
     </div>
-    <div class="mp-field" id="${idPrefix}-aerobic-custom-wrap" style="${type === 'outros' ? '' : 'display:none;'}">
+    <div class="mp-field" id="${idPrefix}-aerobic-custom-wrap" style="${show(type === 'outros')}">
       <label>Qual?</label>
       <input type="text" id="${idPrefix}-aerobic-custom" value="${Utils.escapeHtml(values.aerobicTypeCustom || '')}" placeholder="Ex: Remo, escada...">
+    </div>`}
+    <div class="mp-field" id="${idPrefix}-aerobic-t1-wrap" style="${show(f.interval)}">
+      <label id="${idPrefix}-aerobic-t1-label">${f.t1Label}</label>
+      <input type="text" inputmode="decimal" id="${idPrefix}-aerobic-t1" value="${fmtMmSs(values.t1Seconds)}" placeholder="Ex: 2:00">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-t2-wrap" style="${show(f.interval)}">
+      <label id="${idPrefix}-aerobic-t2-label">${f.t2Label}</label>
+      <input type="text" inputmode="decimal" id="${idPrefix}-aerobic-t2" value="${fmtMmSs(values.t2Seconds)}" placeholder="Ex: 1:00">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-rounds-wrap" style="${show(f.interval)}">
+      <label>Repetições (ciclos)</label>
+      <input type="number" min="0" step="1" id="${idPrefix}-aerobic-rounds" value="${values.rounds ?? ''}">
     </div>
     <div class="mp-field">
-      <label>Tempo (minutos)</label>
-      <input type="number" min="0" step="1" id="${idPrefix}-aerobic-duration" value="${values.durationMinutes ?? ''}">
+      <label>Tempo total (min)${f.interval ? ' — vazio = calculado' : ''}</label>
+      <input type="number" min="0" step="0.5" id="${idPrefix}-aerobic-duration" value="${values.durationMinutes ?? ''}">
     </div>
-    <div class="mp-field" id="${idPrefix}-aerobic-speed-wrap" style="${fields.speed ? '' : 'display:none;'}">
+    <div class="mp-field" id="${idPrefix}-aerobic-distance-wrap" style="${show(f.distance)}">
+      <label>Distância (km)</label>
+      <input type="number" min="0" step="0.01" id="${idPrefix}-aerobic-distance" value="${values.distanceKm ?? ''}">
+    </div>
+    <div class="mp-field" id="${idPrefix}-aerobic-speed-wrap" style="${show(f.speed)}">
       <label>Velocidade (km/h)</label>
       <input type="number" min="0" step="0.1" id="${idPrefix}-aerobic-speed" value="${values.speed ?? ''}">
     </div>
-    <div class="mp-field" id="${idPrefix}-aerobic-incline-wrap" style="${fields.incline ? '' : 'display:none;'}">
+    <div class="mp-field" id="${idPrefix}-aerobic-incline-wrap" style="${show(f.incline)}">
       <label>Inclinação (%)</label>
       <input type="number" min="0" step="0.5" id="${idPrefix}-aerobic-incline" value="${values.incline ?? ''}">
     </div>
-    <div class="mp-field" id="${idPrefix}-aerobic-load-wrap" style="${fields.load ? '' : 'display:none;'}">
+    <div class="mp-field" id="${idPrefix}-aerobic-load-wrap" style="${show(f.load)}">
       <label>Carga / Resistência</label>
       <input type="number" min="0" step="0.5" id="${idPrefix}-aerobic-load" value="${values.load ?? ''}">
     </div>
+    ${zoneSelect}
   `;
 }
 
 function bindAerobicFieldEvents(container, idPrefix) {
   const select = container.querySelector(`#${idPrefix}-aerobic-type`);
-  if (!select) return;
-  const customWrap = container.querySelector(`#${idPrefix}-aerobic-custom-wrap`);
-  const speedWrap = container.querySelector(`#${idPrefix}-aerobic-speed-wrap`);
-  const inclineWrap = container.querySelector(`#${idPrefix}-aerobic-incline-wrap`);
-  const loadWrap = container.querySelector(`#${idPrefix}-aerobic-load-wrap`);
+  if (!select || select.tagName !== 'SELECT') return;
+  const wrap = (k) => container.querySelector(`#${idPrefix}-aerobic-${k}-wrap`);
   select.addEventListener('change', () => {
-    const fields = aerobicFieldsFor(select.value);
-    if (customWrap) customWrap.style.display = select.value === 'outros' ? '' : 'none';
-    if (speedWrap) speedWrap.style.display = fields.speed ? '' : 'none';
-    if (inclineWrap) inclineWrap.style.display = fields.incline ? '' : 'none';
-    if (loadWrap) loadWrap.style.display = fields.load ? '' : 'none';
+    const f = aerobicFieldsFor(select.value);
+    const set = (k, on) => { const w = wrap(k); if (w) w.style.display = on ? '' : 'none'; };
+    set('custom', select.value === 'outros');
+    set('speed', f.speed); set('incline', f.incline); set('load', f.load); set('distance', f.distance);
+    set('t1', f.interval); set('t2', f.interval); set('rounds', f.interval);
+    const l1 = container.querySelector(`#${idPrefix}-aerobic-t1-label`); if (l1) l1.textContent = f.t1Label;
+    const l2 = container.querySelector(`#${idPrefix}-aerobic-t2-label`); if (l2) l2.textContent = f.t2Label;
   });
 }
 
 function readAerobicFieldValues(container, idPrefix) {
-  const aerobicType = container.querySelector(`#${idPrefix}-aerobic-type`).value;
-  const aerobicTypeCustom = aerobicType === 'outros' ? (container.querySelector(`#${idPrefix}-aerobic-custom`)?.value.trim() || '') : '';
-  const durationMinutes = Number(container.querySelector(`#${idPrefix}-aerobic-duration`).value) || 0;
-  const fields = aerobicFieldsFor(aerobicType);
-  const speed = fields.speed ? (Number(container.querySelector(`#${idPrefix}-aerobic-speed`)?.value) || 0) : null;
-  const incline = fields.incline ? (Number(container.querySelector(`#${idPrefix}-aerobic-incline`)?.value) || 0) : null;
-  const load = fields.load ? (Number(container.querySelector(`#${idPrefix}-aerobic-load`)?.value) || 0) : null;
-  return { aerobicType, aerobicTypeCustom, durationMinutes, speed, incline, load };
+  const q = (k) => container.querySelector(`#${idPrefix}-aerobic-${k}`);
+  const num = (k) => { const el = q(k); const v = el ? Number(String(el.value).replace(',', '.')) : 0; return Number.isFinite(v) && v > 0 ? v : null; };
+  const aerobicType = q('type').value;
+  const f = aerobicFieldsFor(aerobicType);
+  const aerobicTypeCustom = aerobicType === 'outros' ? (q('custom')?.value.trim() || '') : '';
+  const t1Seconds = f.interval ? parseMmSs(q('t1')?.value) : null;
+  const t2Seconds = f.interval ? parseMmSs(q('t2')?.value) : null;
+  const rounds = f.interval ? (parseInt(q('rounds')?.value, 10) || null) : null;
+  let durationMinutes = num('duration');
+  if (!durationMinutes && f.interval && rounds && (t1Seconds || t2Seconds)) durationMinutes = Math.round((((t1Seconds || 0) + (t2Seconds || 0)) * rounds) / 6) / 10;
+  return {
+    aerobicType, aerobicTypeCustom,
+    durationMinutes: durationMinutes || 0,
+    distanceKm: f.distance ? num('distance') : null,
+    t1Seconds, t2Seconds, rounds,
+    speed: f.speed ? (num('speed') || 0) : null,
+    incline: f.incline ? (num('incline') || 0) : null,
+    load: f.load ? (num('load') || 0) : null,
+    hrZone: q('zone') ? (q('zone').value || null) : undefined,
+  };
+}
+
+// ---------- Treinos Funcional / Localizada / Pilates / Outros ----------
+const GENERIC_PLACEHOLDERS = {
+  funcional: 'Ex: Circuito funcional — agachamento, prancha, passada',
+  localizada: 'Ex: Glúteos e abdômen com caneleira',
+  pilates: 'Ex: Mat Pilates — série básica',
+  outro: 'Ex: Alongamento, dança, hidroginástica...',
+};
+function genericFieldHtml(idPrefix, type, values, opts = {}) {
+  values = values || {};
+  const esc = Utils.escapeHtml;
+  return `
+    ${!opts.lockType ? `<div class="mp-field" id="${idPrefix}-g-custom-wrap" style="${type === 'outro' ? '' : 'display:none;'}"><label>Qual tipo de treino?</label><input type="text" id="${idPrefix}-g-custom" value="${esc(values.trainingTypeCustom || '')}" placeholder="Ex: Alongamento"></div>` : `<input type="hidden" id="${idPrefix}-g-custom" value="${esc(values.trainingTypeCustom || '')}">`}
+    ${opts.lockType ? `<input type="hidden" id="${idPrefix}-g-name" value="${esc(values.exerciseName || '')}">` : `<div class="mp-field" style="grid-column:1/-1;"><label>Atividade / exercícios</label><input type="text" id="${idPrefix}-g-name" value="${esc(values.genericName ?? values.exerciseName ?? '')}" placeholder="${esc(GENERIC_PLACEHOLDERS[type] || '')}"></div>`}
+    <div class="mp-field"><label>Tempo (min)</label><input type="number" min="0" step="1" id="${idPrefix}-g-duration" value="${values.durationMinutes ?? ''}"></div>
+    <div class="mp-field"><label>Séries (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-series" value="${values.series ?? ''}"></div>
+    <div class="mp-field"><label>Repetições (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-reps" value="${values.reps ?? ''}"></div>
+  `;
+}
+function readGenericFieldValues(container, idPrefix, type) {
+  const q = (k) => container.querySelector(`#${idPrefix}-g-${k}`);
+  const custom = type === 'outro' ? (q('custom')?.value.trim() || '') : '';
+  const name = q('name')?.value.trim() || '';
+  return {
+    trainingTypeCustom: custom,
+    genericName: name,
+    exerciseName: name || trainingTypeLabel(type, custom),
+    durationMinutes: Number(q('duration')?.value) || 0,
+    series: parseInt(q('series')?.value, 10) || null,
+    reps: parseInt(q('reps')?.value, 10) || null,
+  };
+}
+function formatGenericSummary(item) {
+  const parts = [];
+  if (item.durationMinutes) parts.push(`${item.durationMinutes} min`);
+  if (item.series && item.reps) parts.push(`${item.series}×${item.reps}`);
+  else if (item.series) parts.push(`${item.series} séries`);
+  return parts.join(' · ') || '—';
+}
+// Resumo de qualquer item/sessão que não seja força.
+function formatNonStrengthSummary(item) {
+  return item.type === 'aerobico' ? formatAerobicSummary(item) : formatGenericSummary(item);
 }
 
 // Idosos (>=60): Classificação de Lipschitz — abaixo de 22 baixo peso, 22 a 27 eutrófico, acima de 27 sobrepeso.
@@ -352,6 +500,18 @@ window.classifyImc = classifyImc;
 window.CIRCUMFERENCE_FIELDS = CIRCUMFERENCE_FIELDS;
 window.AEROBIC_TYPE_OPTIONS = AEROBIC_TYPE_OPTIONS;
 window.aerobicTypeLabel = aerobicTypeLabel;
+window.TRAINING_TYPE_OPTIONS = TRAINING_TYPE_OPTIONS;
+window.isStrengthType = isStrengthType;
+window.isGenericType = isGenericType;
+window.trainingTypeLabel = trainingTypeLabel;
+window.trainingTypeShort = trainingTypeShort;
+window.parseMmSs = parseMmSs;
+window.fmtMmSs = fmtMmSs;
+window.paceLabel = paceLabel;
+window.genericFieldHtml = genericFieldHtml;
+window.readGenericFieldValues = readGenericFieldValues;
+window.formatGenericSummary = formatGenericSummary;
+window.formatNonStrengthSummary = formatNonStrengthSummary;
 window.aerobicFieldsFor = aerobicFieldsFor;
 window.formatAerobicSummary = formatAerobicSummary;
 window.aerobicFieldHtml = aerobicFieldHtml;
@@ -359,4 +519,4 @@ window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.0';

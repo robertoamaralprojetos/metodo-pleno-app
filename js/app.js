@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.18.1';
+const APP_VERSION = 'v1.19.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -8,39 +8,40 @@ const APP_VERSION = 'v1.18.1';
 // Ao alterar um arquivo, suba o carimbo dele e a versão mínima correspondente nesta tabela.
 const MODULE_MIN = {
   'utils.js': 'v1.13.1',
-  'constants.js': 'v1.13.1',
+  'constants.js': 'v1.19.0',
   'db.js': 'v1.13.1',
   'evaluation-data.js': 'v1.13.1',
   'charts.js': 'v1.13.1',
+  'cardio.js': 'v1.19.0',
   'rest-timer.js': 'v1.13.1',
   'students.js': 'v1.13.1',
   'state.js': 'v1.13.1',
   'checkin.js': 'v1.13.1',
   'periodization.js': 'v1.13.1',
-  'postural-logic.js': 'v1.13.1',
+  'postural-logic.js': 'v1.19.0',
   'postural.js': 'v1.13.1',
-  'monitor-logic.js': 'v1.13.1',
+  'monitor-logic.js': 'v1.19.0',
   'monitor.js': 'v1.13.1',
-  'report-logic.js': 'v1.14.1',
-  'report.js': 'v1.16.0',
+  'report-logic.js': 'v1.19.0',
+  'report.js': 'v1.19.0',
   'pin-lock.js': 'v1.16.0',
-  'settings.js': 'v1.18.0',
+  'settings.js': 'v1.19.0',
   'profile.js': 'v1.18.0',
-  'license.js': 'v1.18.1',
+  'license.js': 'v1.19.0',
   'documents.js': 'v1.17.0',
-  'registration.js': 'v1.17.0',
+  'registration.js': 'v1.19.0',
   'payment-logic.js': 'v1.13.1',
   'payments.js': 'v1.13.1',
   'admin.js': 'v1.17.0',
   'anamnesis.js': 'v1.17.0',
-  'progression.js': 'v1.13.1',
-  'planning.js': 'v1.16.0',
-  'execution.js': 'v1.13.1',
-  'dashboard.js': 'v1.13.1',
+  'progression.js': 'v1.19.0',
+  'planning.js': 'v1.19.0',
+  'execution.js': 'v1.19.0',
+  'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.16.0',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.18.0',
-  'app.js': 'v1.18.1',
+  'app.js': 'v1.19.0',
 };
 
 function versionParts(v) {
@@ -73,9 +74,9 @@ const HELP_TOPICS = [
   { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
   { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
   { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
-  { title: 'Planejar Aula', text: 'Monte a sequência de exercícios (séries, reps, carga, descanso) antes da aula.' },
-  { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
-  { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), aulas dadas, check-ins e consistência de treino.' },
+  { title: 'Planejar Aula', text: 'Monte a sequência da aula: força (séries, reps, carga, descanso), aeróbico (corrida e caminhada ao ar livre por tempo ou distância, intervalados, esteira, bicicleta, elíptico) com zona de FC alvo, Treinamento Funcional, Ginástica Localizada, Pilates ou outro tipo. O card ❤️ mostra a FC máxima (Tanaka ou medida) e as zonas de treino (Karvonen, com a FC de repouso do Cadastro).' },
+  { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e, nos treinos aeróbicos e demais tipos, a frequência cardíaca (antes, média, ao final e 1 e 2 minutos depois, com cronômetro de recuperação) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
+  { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), condicionamento cardiovascular (recuperação da FC, FC antes do treino, ritmo, distância e tempo de aeróbico), aulas dadas, check-ins e consistência de treino.' },
   { title: 'Relatório de Evolução', text: 'Documento para o aluno e a família: frequência, evolução de carga, avaliação funcional, conquistas e mais, com PDF pela impressão do navegador e resumo para WhatsApp. Você escolhe o período e o que incluir; fotos nunca entram. Também exporta os dados de um único aluno.' },
   { title: 'Carga e Deload', text: 'Detecta platô por exercício e sinais de sobrecarga (esforço, check-ins e volume semanal) e sugere deload por volume ou espelhado, seguindo a hierarquia reps → séries → descanso → carga em ordem inversa. Os limites são editáveis em Configurações.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test — 5 testes físicos com tabelas normativas por idade/sexo e Índice de Aptidão Funcional.' },
@@ -213,6 +214,7 @@ function renderHeader() {
         </div>
       </div>
       ${storageWarning ? `<div class="mp-warning-banner">⚠ ${Utils.escapeHtml(storageWarning)}</div>` : ''}
+      ${updateReady ? `<div class="mp-warning-banner mp-warning-soft">🔄 Nova versão do app disponível. <button type="button" id="mp-update-btn" class="mp-btn mp-btn-outline mp-btn-sm" style="margin-left:10px;">Atualizar agora</button></div>` : ''}
       ${integrityBannerHtml()}
       ${License.bannerHtml()}
       ${BackupModule.needsBackupReminder(AppState.settings) ? `
@@ -300,21 +302,25 @@ function renderTabContent() {
 function exportSessionsCsv() {
   const sessions = AppState.data.sessions;
   if (!sessions.length) { Utils.toast('Nenhum registro para exportar ainda.', 'error'); return; }
-  const header = 'Data;Tipo;Exercicio;Series;Repeticoes;Carga;Unidade;TempoMin;Velocidade;Inclinacao;Borg;Observacoes\n';
+  const header = 'Data;Tipo;Exercicio;Series;Repeticoes;Carga;Unidade;TempoMin;DistanciaKm;Velocidade;Inclinacao;Intervalo;FCAntes;FCMedia;FCFinal;FC1min;FC2min;Borg;Observacoes\n';
   const lines = sessions.map((s) => {
-    const isAerobico = s.type === 'aerobico';
+    const strength = isStrengthType(s.type);
+    const v = (x) => (x == null ? '' : x);
     return [
       s.date,
-      isAerobico ? 'Aerobico' : 'Forca',
+      trainingTypeLabel(s.type, s.trainingTypeCustom),
       s.exerciseName,
-      isAerobico ? '' : s.series,
-      isAerobico ? '' : s.reps,
-      isAerobico ? (s.load ?? '') : s.load,
-      isAerobico ? '' : s.unit,
-      isAerobico ? (s.durationMinutes ?? '') : '',
-      isAerobico ? (s.speed ?? '') : '',
-      isAerobico ? (s.incline ?? '') : '',
-      s.borg,
+      v(s.series),
+      v(s.reps),
+      v(s.load),
+      strength ? v(s.unit) : '',
+      strength ? '' : v(s.durationMinutes),
+      v(s.distanceKm),
+      v(s.speed),
+      v(s.incline),
+      s.rounds ? `${s.rounds}x ${fmtMmSs(s.t1Seconds)}/${fmtMmSs(s.t2Seconds)}` : '',
+      v(s.hrBefore), v(s.hrAvg), v(s.hrEnd), v(s.hrRec1), v(s.hrRec2),
+      v(s.borg),
       (s.notes || '').replace(/;/g, ','),
     ].join(';');
   });
@@ -345,6 +351,8 @@ function bindHeaderEvents() {
 
   const exportBackupBtn = document.getElementById('mp-export-backup');
   if (exportBackupBtn) exportBackupBtn.addEventListener('click', () => BackupModule.exportBackup());
+
+  document.getElementById('mp-update-btn')?.addEventListener('click', () => location.reload());
 
   const backupReminderBtn = document.getElementById('mp-backup-reminder-btn');
   if (backupReminderBtn) backupReminderBtn.addEventListener('click', () => BackupModule.exportBackup());
@@ -381,10 +389,22 @@ function updateConnectionBadge() {
   badge.textContent = isOnline ? '● Online' : '● Offline — funcionando normalmente';
 }
 
+// Aviso de nova versão (v1.19.0): quando uma atualização é publicada, a janela aberta
+// continua rodando o código antigo até ser recarregada. O app confere se há atualização
+// sempre que volta a ficar visível e mostra um aviso para recarregar.
+let updateReady = false;
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController && !updateReady) { updateReady = true; render(); }
+    });
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch((err) => {
+      navigator.serviceWorker.register('service-worker.js').then((reg) => {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && reg && reg.update) reg.update().catch(() => {});
+        });
+      }).catch((err) => {
         console.warn('Falha ao registrar service worker:', err);
       });
     });
@@ -413,4 +433,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.18.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.0';

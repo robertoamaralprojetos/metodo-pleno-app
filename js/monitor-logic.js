@@ -62,7 +62,7 @@ function exposuresFor(sessions, exerciseName) {
   const key = normName(exerciseName);
   const byDate = {};
   sessions
-    .filter((s) => s.type !== 'aerobico' && normName(s.exerciseName) === key)
+    .filter((s) => isStrengthType(s.type) && normName(s.exerciseName) === key)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0))
     .forEach((s) => { byDate[s.date] = s; });
   return Object.values(byDate)
@@ -123,7 +123,7 @@ function analyzeExercise(name, exposures, cfg, today) {
 // ---------- Sinais globais de sobrecarga ----------
 function weekVolume(sessions, endISO) {
   const startISO = addDays(endISO, -6);
-  return sessions.filter((s) => s.type !== 'aerobico' && s.date >= startISO && s.date <= endISO)
+  return sessions.filter((s) => isStrengthType(s.type) && s.date >= startISO && s.date <= endISO)
     .reduce((sum, s) => sum + volumeOf({ series: Number(s.series) || 0, reps: Number(s.reps) || 0, load: Number(s.load) || 0 }), 0);
 }
 
@@ -173,7 +173,7 @@ const ADJ_LABEL = { reps: 'repetições', series: 'séries', descanso: 'descanso
 function buildDeloadPlan(templates, adjustments, mode, cfg, severe) {
   const changes = [];
   (templates || []).forEach((t) => (t.items || []).forEach((it) => {
-    if (it.type === 'aerobico') return;
+    if (!isStrengthType(it.type)) return;
     const before = { series: it.series, reps: it.reps, load: it.load, restSeconds: it.restSeconds };
     const after = { ...before };
     const how = [];
@@ -208,12 +208,12 @@ function buildDeloadPlan(templates, adjustments, mode, cfg, severe) {
 function analyzeLoad(args) {
   const { student, sessions, checkins, adjustments, templates, settings, today, band, evalCheckin } = args;
   const cfg = monitorCfg(settings);
-  const forceSessions = sessions.filter((s) => s.type !== 'aerobico');
+  const forceSessions = sessions.filter((s) => isStrengthType(s.type));
 
   // exercícios: os das sessões recentes (12 semanas) e os das Fichas
   const names = new Map();
   forceSessions.forEach((s) => { if (daysBetween(s.date, today) <= 84) names.set(normName(s.exerciseName), s.exerciseName); });
-  (templates || []).forEach((t) => (t.items || []).forEach((it) => { if (it.type !== 'aerobico' && !names.has(normName(it.exerciseName))) names.set(normName(it.exerciseName), it.exerciseName); }));
+  (templates || []).forEach((t) => (t.items || []).forEach((it) => { if (isStrengthType(it.type) && !names.has(normName(it.exerciseName))) names.set(normName(it.exerciseName), it.exerciseName); }));
   const exercises = Array.from(names.values())
     .map((n) => analyzeExercise(n, exposuresFor(forceSessions, n), cfg, today))
     .filter((e) => e.exposures > 0);
@@ -259,4 +259,4 @@ window.MonitorLogic = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['monitor-logic.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['monitor-logic.js'] = 'v1.19.0';

@@ -102,6 +102,11 @@ function regRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Saúde e treino</h3>
     <div class="mp-sub" style="margin-top:10px;">O estágio de treino (adaptação/intermediário/avançado) agora é editado na aba "Planejar Aula", junto com a ficha do dia.</div>
+    <div class="mp-form-row mp-row2">
+      <div class="mp-field"><label>FC de repouso (bpm)</label><input type="number" min="30" max="120" step="1" id="r-hr-rest" value="${student.hrRest ?? ''}" placeholder="Ex: 68"></div>
+      <div class="mp-field"><label>FC máxima medida em teste (bpm, opcional)</label><input type="number" min="80" max="230" step="1" id="r-hr-max" value="${student.hrMaxMeasured ?? ''}" placeholder="${Cardio.max({ birthDate: student.birthDate }) ? 'Estimada: ' + Cardio.max({ birthDate: student.birthDate }).value + ' (Tanaka)' : 'Sem teste: usa Tanaka'}"></div>
+    </div>
+    <div class="mp-sub" style="margin:-4px 0 12px;">A FC de repouso (medida sentado, após 5 min em repouso) permite calcular as zonas de treino pelo método de Karvonen. Sem teste, a FC máxima é estimada por Tanaka (208 − 0,7 × idade).</div>
     <div class="mp-field"><label>Data do atestado médico</label><input type="date" id="r-cert" value="${student.medicalCertificateDate || ''}"></div>
     <div id="r-cert-status" style="margin:10px 0 14px;">${certStatus ? `<span class="mp-pill mp-pill-${certStatus.level}">${Utils.escapeHtml(certStatus.text)}</span>` : ''}</div>
     <div class="mp-field">
@@ -196,6 +201,8 @@ function regBindEvents(container) {
       weekDays,
       schedule,
       medicalCertificateDate: container.querySelector('#r-cert').value || null,
+      hrRest: parseInt(container.querySelector('#r-hr-rest').value, 10) || null,
+      hrMaxMeasured: parseInt(container.querySelector('#r-hr-max').value, 10) || null,
       notes: container.querySelector('#r-notes').value.trim(),
     });
     AppState.students = await StudentsData.listStudents();
@@ -219,4 +226,4 @@ function regBindEvents(container) {
 window.RegistrationView = { renderHtml: regRenderHtml, bindEvents: regBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['registration.js'] = 'v1.17.0';
+(window.MP_BUILD = window.MP_BUILD || {})['registration.js'] = 'v1.19.0';

@@ -24,13 +24,14 @@ function dashRenderHtml() {
     return `<div class="mp-empty"><h3>Ainda não há dados de treino</h3><p>Assim que você lançar sessões na aba "Registro de Treino", os gráficos de evolução aparecem aqui.</p></div>`;
   }
   const ex = exerciseList();
+  const exForca = Array.from(new Set(sessions.filter((s) => isStrengthType(s.type)).map((s) => s.exerciseName))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const totalSessoes = countTrainingDays(sessions);
   const ultimaData = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0].date;
   const primeiraData = [...sessions].sort((a, b) => a.date.localeCompare(b.date))[0].date;
   const dailyBorg = dailyBorgSeries();
   const mediaBorgGeral = dailyBorg.length ? (dailyBorg.reduce((a, d) => a + d.value, 0) / dailyBorg.length).toFixed(1) : '—';
 
-  const exOptions = ex.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
+  const exOptions = exForca.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
   const exBorg = exercisesWithBorg();
   const exBorgOptions = exBorg.map((e) => `<option value="${Utils.escapeHtml(e)}">${Utils.escapeHtml(e)}</option>`).join('');
 
@@ -64,6 +65,8 @@ function dashRenderHtml() {
     <div class="mp-sub" id="mp-borg-exercicio-resumo" style="margin:10px 0 0;"></div>` : `
     <div class="mp-sub" style="margin:0;padding:30px 0;text-align:center;">Ainda não há exercícios com Borg individual. Registre o Borg "Por exercício" ao concluir os exercícios para acompanhar cada um aqui.</div>`}
   </div>
+
+  ${Cardio.dashboardHtml(sessions)}
 
   ${CheckinView.dashboardHtml()}
 
@@ -191,13 +194,14 @@ function drawTrilha(container) {
 function dashAfterRender(container) {
   if (!AppState.data.sessions.length) return;
   const exSelect = container.querySelector('#mp-ex-select');
-  const exercicio = exSelect ? exSelect.value : exerciseList()[0];
+  const exercicio = exSelect ? exSelect.value : '';
   drawLoadChart(container, exercicio);
   const dailyBorg = dailyBorgSeries();
   drawBorgPerTreinoChart(container, dailyBorg);
   const exBorgSelect = container.querySelector('#mp-ex-borg-select');
   if (exBorgSelect) drawBorgPerExerciseChart(container, exBorgSelect.value);
   CheckinView.dashboardDraw(container);
+  Cardio.dashboardDraw(container, AppState.data.sessions);
   drawBorgChart(container, dailyBorg);
   drawAulasDadasChart(container);
   drawTrilha(container);
@@ -214,4 +218,4 @@ function dashBindEvents(container) {
 window.DashboardView = { renderHtml: dashRenderHtml, bindEvents: dashBindEvents, afterRender: dashAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['dashboard.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['dashboard.js'] = 'v1.19.0';
