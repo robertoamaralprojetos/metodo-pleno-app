@@ -237,6 +237,27 @@ function parseMmSs(v) {
   const n = Number(t);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 60) : null;
 }
+// Campo de tempo em dois números (min | seg): o teclado numérico do celular não tem ":".
+function mmSsInputsHtml(id, seconds, exMin) {
+  const has = seconds != null && seconds !== '' && Number(seconds) > 0;
+  const s = has ? Math.round(Number(seconds)) : 0;
+  const st = 'width:100%;text-align:center;';
+  return `<div style="display:flex;align-items:center;gap:6px;">
+      <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" id="${id}-min" value="${has ? Math.floor(s / 60) : ''}" placeholder="${exMin ?? 0}" aria-label="minutos" style="${st}">
+      <span style="white-space:nowrap;">min</span>
+      <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="59" step="1" id="${id}-sec" value="${has ? String(s % 60).padStart(2, '0') : ''}" placeholder="00" aria-label="segundos" style="${st}">
+      <span style="white-space:nowrap;">seg</span>
+    </div>`;
+}
+function readMmSsInputs(container, id) {
+  const m = container.querySelector(`#${id}-min`);
+  const sec = container.querySelector(`#${id}-sec`);
+  if (!m && !sec) { const old = container.querySelector(`#${id}`); return old ? parseMmSs(old.value) : null; }
+  const mv = parseInt(m?.value, 10) || 0;
+  const sv = parseInt(sec?.value, 10) || 0;
+  const total = mv * 60 + sv;
+  return total > 0 ? total : null;
+}
 function fmtMmSs(seconds) {
   if (seconds == null || seconds === '') return '';
   const s = Math.round(Number(seconds));
@@ -279,8 +300,8 @@ function aerobicFieldsFor(type) {
     load: ['bicicletaErgometrica', 'bicicletaSpinning', 'eliptico', 'outros'].includes(type),
     distance: outdoor || interval,
     interval,
-    t1Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de caminhada (mm:ss)' : 'Tempo 1 · estímulo (mm:ss)',
-    t2Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de corrida (mm:ss)' : 'Tempo 2 · recuperação (mm:ss)',
+    t1Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de caminhada' : 'Tempo 1 · estímulo',
+    t2Label: type === 'intervaladoCaminhadaCorrida' ? 'Tempo de corrida' : 'Tempo 2 · recuperação',
   };
 }
 
@@ -330,11 +351,11 @@ function aerobicFieldHtml(idPrefix, values, opts = {}) {
     </div>`}
     <div class="mp-field" id="${idPrefix}-aerobic-t1-wrap" style="${show(f.interval)}">
       <label id="${idPrefix}-aerobic-t1-label">${f.t1Label}</label>
-      <input type="text" inputmode="decimal" id="${idPrefix}-aerobic-t1" value="${fmtMmSs(values.t1Seconds)}" placeholder="Ex: 2:00">
+      ${mmSsInputsHtml(`${idPrefix}-aerobic-t1`, values.t1Seconds, 2)}
     </div>
     <div class="mp-field" id="${idPrefix}-aerobic-t2-wrap" style="${show(f.interval)}">
       <label id="${idPrefix}-aerobic-t2-label">${f.t2Label}</label>
-      <input type="text" inputmode="decimal" id="${idPrefix}-aerobic-t2" value="${fmtMmSs(values.t2Seconds)}" placeholder="Ex: 1:00">
+      ${mmSsInputsHtml(`${idPrefix}-aerobic-t2`, values.t2Seconds, 1)}
     </div>
     <div class="mp-field" id="${idPrefix}-aerobic-rounds-wrap" style="${show(f.interval)}">
       <label>Repetições (ciclos)</label>
@@ -385,8 +406,8 @@ function readAerobicFieldValues(container, idPrefix) {
   const aerobicType = q('type').value;
   const f = aerobicFieldsFor(aerobicType);
   const aerobicTypeCustom = aerobicType === 'outros' ? (q('custom')?.value.trim() || '') : '';
-  const t1Seconds = f.interval ? parseMmSs(q('t1')?.value) : null;
-  const t2Seconds = f.interval ? parseMmSs(q('t2')?.value) : null;
+  const t1Seconds = f.interval ? readMmSsInputs(container, `${idPrefix}-aerobic-t1`) : null;
+  const t2Seconds = f.interval ? readMmSsInputs(container, `${idPrefix}-aerobic-t2`) : null;
   const rounds = f.interval ? (parseInt(q('rounds')?.value, 10) || null) : null;
   let durationMinutes = num('duration');
   if (!durationMinutes && f.interval && rounds && (t1Seconds || t2Seconds)) durationMinutes = Math.round((((t1Seconds || 0) + (t2Seconds || 0)) * rounds) / 6) / 10;
@@ -506,6 +527,8 @@ window.isGenericType = isGenericType;
 window.trainingTypeLabel = trainingTypeLabel;
 window.trainingTypeShort = trainingTypeShort;
 window.parseMmSs = parseMmSs;
+window.mmSsInputsHtml = mmSsInputsHtml;
+window.readMmSsInputs = readMmSsInputs;
 window.fmtMmSs = fmtMmSs;
 window.paceLabel = paceLabel;
 window.genericFieldHtml = genericFieldHtml;
@@ -519,4 +542,4 @@ window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.2';

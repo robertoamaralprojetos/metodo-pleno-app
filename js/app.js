@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.1';
+const APP_VERSION = 'v1.19.2';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -8,7 +8,7 @@ const APP_VERSION = 'v1.19.1';
 // Ao alterar um arquivo, suba o carimbo dele e a versão mínima correspondente nesta tabela.
 const MODULE_MIN = {
   'utils.js': 'v1.13.1',
-  'constants.js': 'v1.19.0',
+  'constants.js': 'v1.19.2',
   'db.js': 'v1.13.1',
   'evaluation-data.js': 'v1.13.1',
   'charts.js': 'v1.13.1',
@@ -435,4 +435,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.2';
