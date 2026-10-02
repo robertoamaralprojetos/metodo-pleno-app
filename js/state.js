@@ -47,8 +47,12 @@ async function stateInit() {
   if (AppState.students.length) {
     AppState.currentId = AppState.students[0].id;
     AppState.data = await loadStudentData(AppState.currentId);
+  } else if (window.AutoBackup) {
+    // Banco vazio: confere se os dados foram apagados pelo sistema (v1.19.4).
+    try { AppState.recovery = await AutoBackup.detectWipe(); } catch (e) { AppState.recovery = null; }
   }
   AppState.loading = false;
+  if (window.AutoBackup && AppState.students.length) setTimeout(() => AutoBackup.snapshot(true), 4000);
   render();
 }
 
@@ -240,4 +244,4 @@ window.adjustmentHistoryFor = adjustmentHistoryFor;
 window.persistAdjustment = persistAdjustment;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['state.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['state.js'] = 'v1.19.4';

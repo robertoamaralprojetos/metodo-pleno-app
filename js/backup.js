@@ -75,17 +75,10 @@ async function importBackup(file) {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    await DB.importAll(data);
+    // Recarrega as Configurações (perfil, logo, cor, regras) vindas do backup. Quem acabou de
+    // restaurar já está usando o app, então não pede o PIN agora (vale na próxima abertura).
+    await restoreFromData(data);
     Utils.toast('Backup restaurado ✓', 'success');
-    // Recarrega as Configurações (perfil, logo, cor, regras) vindas do backup — antes só
-    // valiam depois de recarregar a página. Quem acabou de restaurar já está usando o app,
-    // então não pede o PIN agora (vale a partir da próxima abertura).
-    AppState.settings = await loadSettings();
-    AppState.pinUnlocked = true;
-    if (window.License) License.ready = false; // reavalia a licença que veio no backup
-    if (!AppState.settings.onboardingDone) await saveSettingsPatch({ onboardingDone: true });
-    AppState.students = await StudentsData.listStudents();
-    await switchStudent(AppState.students[0]?.id || null);
   } catch (e) {
     Utils.toast('Arquivo de backup inválido: ' + (e.message || 'erro ao ler o arquivo'), 'error');
   }
@@ -139,6 +132,7 @@ function sgCardHtml(settings) {
     <h3>🔒 Proteção dos dados</h3>
     <div class="mp-sub" style="margin-top:10px;">Os dados ficam só neste aparelho. Com a proteção ativa, o navegador não apaga os dados do app sozinho quando o aparelho fica com pouco espaço.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${status}<span class="mp-pill mp-pill-neutro" style="background:var(--borda);color:var(--texto);">Último backup: ${last}</span></div>
+    ${(() => { const m = autoLsGet(AUTO.markKey); const w = autoWipeLog(); return (m && m.students ? `<div class="mp-sub" style="margin:0 0 10px;">🛟 Cópia automática interna: <strong>${autoFmt(m.at)}</strong> (${m.students} aluno(s)${m.lite ? ', sem imagens grandes' : ''}).</div>` : '') + (w.length ? `<div class="mp-sub" style="margin:0 0 10px;color:var(--texto);">⚠ Apagamentos de dados detectados neste aparelho: <strong>${w.length}</strong> (último em ${autoFmt(w[w.length - 1].at)}).</div>` : ''); })()}
     ${g.usage != null ? `<div class="mp-sub" style="margin:0 0 10px;">Espaço usado pelo app: <strong>${sgFmtMB(g.usage)}</strong>${g.quota ? ` de ${sgFmtMB(g.quota)} disponíveis para ele` : ''}.</div>` : ''}
     ${g.supported && g.persisted === false ? `<div class="mp-sub" style="margin:0 0 10px;color:var(--texto);">Para ativar: <strong>instale o app na tela inicial</strong> (menu do Chrome → "Instalar app" ou "Adicionar à tela inicial"), abra-o por esse ícone e toque em "Pedir proteção". O Chrome decide sozinho, sem perguntar; às vezes ativa só depois de alguns dias de uso.</div>` : ''}
     <div class="mp-sub" style="margin:0 0 12px;">⚠ Nenhuma proteção impede uma limpeza feita por você (limpar dados do Chrome, apps de limpeza que apagam "dados do aplicativo" do Chrome). Por isso, mantenha o <strong>backup semanal</strong> guardado fora do aparelho.</div>
@@ -166,8 +160,201 @@ function sgBind(container, skipRefresh) {
   });
 }
 
+// ---------- Cópia automática interna (v1.19.4) ----------
+// Em alguns aparelhos, o banco de dados do app (IndexedDB) é apagado por limpezas do sistema
+// ou de apps de limpeza, enquanto o restante (chave da licença) continua. Para não depender
+// só do arquivo de backup, o app guarda sozinho uma cópia dos dados em DOIS outros lugares do
+// navegador: o Cache Storage (cópia completa) e o localStorage (cópia compactada; sem fotos se
+// ficar grande). Ao abrir, se o banco estiver vazio mas houver sinal de que havia alunos, o app
+// oferece restaurar com um toque. Não substitui o backup em arquivo: se o navegador inteiro
+// for limpo, essas cópias também somem.
+const AUTO = { cache: 'mp-autobackup', url: 'mp-autobackup.json', lsKey: 'mp-autobackup', markKey: 'mp-data-mark', logKey: 'mp-wipe-log', lsMax: 2400000 };
+let autoDirty = false, autoBusy = false;
+
+function autoLsGet(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function autoLsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+
+function autoB64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function autoPack(str) {
+  if (typeof CompressionStream === 'undefined') return { z: false, s: str };
+  const buf = await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+  return { z: true, s: autoB64(new Uint8Array(buf)) };
+}
+async function autoUnpack(o) {
+  if (!o.z) return o.s;
+  const bin = atob(o.s); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+// Remove imagens grandes (fotos posturais, logo, assinaturas) para caber no localStorage.
+function autoStripBig(v) {
+  if (typeof v === 'string') return v.length > 20000 && v.startsWith('data:') ? null : v;
+  if (Array.isArray(v)) return v.map(autoStripBig);
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = autoStripBig(v[k]); return o; }
+  return v;
+}
+
+function autoHookDB() {
+  ['put', 'delete', 'clear', 'importAll'].forEach((fn) => {
+    const orig = DB[fn];
+    if (typeof orig !== 'function' || orig.__mpAuto) return;
+    const w = function (...a) { autoDirty = true; return orig.apply(this, a); };
+    w.__mpAuto = true;
+    DB[fn] = w;
+  });
+}
+
+async function autoSnapshot(force) {
+  if (autoBusy || AppState.recovery) return false;
+  if (!force && !autoDirty) return false;
+  autoBusy = true;
+  try {
+    const data = await DB.exportAll();
+    const n = (data.students || []).length;
+    autoDirty = false;
+    const at = new Date().toISOString();
+    if (!n) {
+      // Sem alunos (ex.: o profissional excluiu todos): só registra; mantém a última cópia guardada.
+      const mark = autoLsGet(AUTO.markKey);
+      if (mark && mark.students) autoLsSet(AUTO.markKey, { ...mark, students: 0, at });
+      return false;
+    }
+    data.autoSnapshotAt = at;
+    const json = JSON.stringify(data);
+    let cacheOk = false, lsOk = false, lite = false;
+    if ('caches' in window) {
+      try {
+        const c = await caches.open(AUTO.cache);
+        await c.put(AUTO.url, new Response(json, { headers: { 'Content-Type': 'application/json' } }));
+        cacheOk = true;
+      } catch (e) { /* sem espaço: segue para o localStorage */ }
+    }
+    try {
+      let pk = await autoPack(json);
+      if (pk.s.length > AUTO.lsMax) { pk = await autoPack(JSON.stringify(autoStripBig(data))); lite = true; }
+      if (pk.s.length <= AUTO.lsMax) lsOk = autoLsSet(AUTO.lsKey, { at, n, lite, z: pk.z, s: pk.s });
+    } catch (e) { /* mantém a cópia anterior */ }
+    autoLsSet(AUTO.markKey, { students: n, at, cache: cacheOk, ls: lsOk, lite, v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') });
+    return cacheOk || lsOk;
+  } catch (e) {
+    return false;
+  } finally {
+    autoBusy = false;
+  }
+}
+
+// Procura a cópia automática mais recente (Cache Storage ou localStorage).
+async function autoFind() {
+  const found = [];
+  if ('caches' in window) {
+    try {
+      const c = await caches.open(AUTO.cache);
+      const r = await c.match(AUTO.url);
+      if (r) { const data = JSON.parse(await r.text()); found.push({ source: 'cache', data, at: data.autoSnapshotAt || '', n: (data.students || []).length, lite: false }); }
+    } catch (e) { /* ignora */ }
+  }
+  const ls = autoLsGet(AUTO.lsKey);
+  if (ls && ls.s) {
+    try { const data = JSON.parse(await autoUnpack(ls)); found.push({ source: 'ls', data, at: ls.at || data.autoSnapshotAt || '', n: (data.students || []).length, lite: !!ls.lite }); } catch (e) { /* ignora */ }
+  }
+  const ok = found.filter((f) => f.n > 0);
+  ok.sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : (a.lite ? 1 : 0) - (b.lite ? 1 : 0)));
+  return ok[0] || null;
+}
+
+function autoWipeLog() { const l = autoLsGet(AUTO.logKey); return Array.isArray(l) ? l : []; }
+
+// Chamado ao abrir o app com o banco sem alunos. Devolve o estado de recuperação, ou null.
+async function autoDetectWipe() {
+  const mark = autoLsGet(AUTO.markKey);
+  const snap = await autoFind();
+  const wiped = (mark && mark.students > 0) || (!mark && snap);
+  if (!wiped) return null;
+  const log = autoWipeLog();
+  log.push({ at: new Date().toISOString(), had: mark?.students || snap?.n || 0, v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') });
+  autoLsSet(AUTO.logKey, log.slice(-20));
+  return { mark, snap, count: Math.min(log.length, 20) };
+}
+
+async function restoreFromData(data) {
+  await DB.importAll(data);
+  AppState.recovery = null;
+  AppState.settings = await loadSettings();
+  AppState.pinUnlocked = true;
+  if (window.License) License.ready = false;
+  if (!AppState.settings.onboardingDone) await saveSettingsPatch({ onboardingDone: true });
+  AppState.students = await StudentsData.listStudents();
+  await switchStudent(AppState.students[0]?.id || null);
+  setTimeout(() => autoSnapshot(true), 1500);
+}
+
+function autoFmt(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${Utils.formatDateBR(iso.slice(0, 10))} às ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function recoveryScreenHtml() {
+  const r = AppState.recovery || {};
+  const had = r.mark?.students || r.snap?.n || 0;
+  const snap = r.snap;
+  return `
+  <div class="mp-wrap" style="padding:24px 16px;">
+    <div class="mp-card" style="max-width:600px;margin:20px auto;">
+      <h3>⚠ Os dados deste aparelho foram apagados</h3>
+      <div class="mp-sub" style="margin:10px 0;color:var(--texto);">O app abriu com o banco de dados vazio, mas este aparelho tinha <strong>${had} aluno(s)</strong>${r.mark?.at ? ` (última atividade em ${autoFmt(r.mark.at)})` : ''}. Isso acontece quando o sistema, o navegador ou um app de limpeza apaga os dados do app. Não foi a atualização do Método Pleno que apagou.</div>
+      ${snap ? `
+        <div class="mp-sub" style="margin:10px 0;color:var(--texto);">✅ <strong>O app guardou uma cópia automática</strong> em ${autoFmt(snap.at)}, com ${snap.n} aluno(s).</div>
+        ${snap.lite ? '<div class="mp-sub" style="margin:0 0 10px;">Esta cópia não tem as imagens grandes (fotos posturais, assinaturas e logo). Se precisar delas, restaure o seu arquivo de backup (JSON).</div>' : ''}
+        <div class="mp-form-actions" style="justify-content:flex-start;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="mp-btn mp-btn-gold" id="rc-auto" style="background:var(--verde-principal);color:#fff;">Restaurar cópia automática</button>
+        </div>` : `
+        <div class="mp-sub" style="margin:10px 0;color:var(--texto);">Não foi encontrada uma cópia automática neste aparelho. Restaure o seu último arquivo de backup (JSON).</div>`}
+      <div class="mp-form-actions" style="justify-content:flex-start;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <label class="mp-btn mp-btn-ghost" style="border-color:var(--verde-suave);color:var(--verde-principal);cursor:pointer;">📂 Restaurar de um arquivo de backup<input type="file" id="rc-file" accept=".json,application/json" style="display:none;"></label>
+        <button type="button" class="mp-btn mp-btn-ghost" id="rc-skip">Começar do zero</button>
+      </div>
+      <div class="mp-sub" style="margin-top:14px;">Apagamentos detectados neste aparelho: <strong>${r.count || 1}</strong>. Se isso se repete, verifique se há app de limpeza (ex.: Avast, CCleaner, "Otimizar") apagando dados do navegador, e confira o espaço livre do aparelho.</div>
+    </div>
+  </div>`;
+}
+
+function recoveryScreenBind(root) {
+  root.querySelector('#rc-auto')?.addEventListener('click', async (ev) => {
+    ev.target.disabled = true; ev.target.textContent = 'Restaurando…';
+    try { await restoreFromData(AppState.recovery.snap.data); Utils.toast('Dados restaurados ✓', 'success'); }
+    catch (e) { ev.target.disabled = false; ev.target.textContent = 'Restaurar cópia automática'; Utils.toast('Não foi possível restaurar: ' + (e.message || e), 'error'); }
+  });
+  root.querySelector('#rc-file')?.addEventListener('change', async (ev) => {
+    const f = ev.target.files?.[0]; if (!f) return;
+    try { await restoreFromData(JSON.parse(await f.text())); Utils.toast('Backup restaurado ✓', 'success'); }
+    catch (e) { Utils.toast('Arquivo de backup inválido: ' + (e.message || 'erro ao ler o arquivo'), 'error'); }
+  });
+  root.querySelector('#rc-skip')?.addEventListener('click', async () => {
+    const ok = await Utils.confirmDialog('Começar do zero neste aparelho? A cópia automática continua guardada até o app salvar novos dados.');
+    if (!ok) return;
+    const mark = autoLsGet(AUTO.markKey);
+    if (mark) autoLsSet(AUTO.markKey, { ...mark, students: 0 });
+    AppState.recovery = null;
+    render();
+  });
+}
+
+function autoInit() {
+  autoHookDB();
+  setInterval(() => autoSnapshot(false), 2 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autoSnapshot(false); });
+  window.addEventListener('pagehide', () => autoSnapshot(false));
+}
+
+window.AutoBackup = { init: autoInit, snapshot: autoSnapshot, find: autoFind, detectWipe: autoDetectWipe, wipeLog: autoWipeLog, mark: () => autoLsGet(AUTO.markKey), fmt: autoFmt, screenHtml: recoveryScreenHtml, screenBind: recoveryScreenBind, restore: restoreFromData };
+
 window.StorageGuard = Object.assign(StorageGuard, { refresh: sgRefresh, request: sgRequest, cardHtml: sgCardHtml, bind: sgBind });
 window.BackupModule = { exportBackup, importBackup, daysSinceBackup, needsBackupReminder };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.19.1';
+(window.MP_BUILD = window.MP_BUILD || {})['backup.js'] = 'v1.19.4';

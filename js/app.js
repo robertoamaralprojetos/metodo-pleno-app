@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.3';
+const APP_VERSION = 'v1.19.4';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -15,7 +15,7 @@ const MODULE_MIN = {
   'cardio.js': 'v1.19.0',
   'rest-timer.js': 'v1.13.1',
   'students.js': 'v1.13.1',
-  'state.js': 'v1.13.1',
+  'state.js': 'v1.19.4',
   'checkin.js': 'v1.13.1',
   'periodization.js': 'v1.13.1',
   'postural-logic.js': 'v1.19.0',
@@ -40,8 +40,8 @@ const MODULE_MIN = {
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.16.0',
-  'backup.js': 'v1.19.1',
-  'app.js': 'v1.19.3',
+  'backup.js': 'v1.19.4',
+  'app.js': 'v1.19.4',
 };
 
 function versionParts(v) {
@@ -149,6 +149,11 @@ function render() {
   if (!License.allowsUse()) {
     root.innerHTML = License.screenHtml();
     License.screenBind(root);
+    return;
+  }
+  if (AppState.recovery) {
+    root.innerHTML = AutoBackup.screenHtml();
+    AutoBackup.screenBind(root);
     return;
   }
   if (Onboarding.shouldShow()) {
@@ -431,8 +436,9 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   // Pede ao navegador para não apagar os dados do app quando faltar espaço (v1.19.1).
   StorageGuard.request();
+  AutoBackup.init();
   stateInit();
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.3';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.4';
