@@ -506,3 +506,9 @@ body{ background:var(--fundo); -webkit-tap-highlight-color:transparent; }
 .mp-cardio-details summary::after{ content:' ▾'; color:var(--verde-suave); font-size:14px; }
 .mp-cardio-details[open] summary::after{ content:' ▴'; }
 @media (max-width:620px){ .mp-hr-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* ---------- Campo com sinal ± (v1.19.2) ---------- */
+.mp-signed-input{ display:flex; gap:6px; align-items:stretch; }
+.mp-signed-input input{ flex:1; min-width:0; }
+.mp-sign-btn{ flex:none; width:46px; border-radius:10px; border:1px solid var(--verde-suave); background:var(--verde-pallido); color:var(--verde-principal); font-size:20px; font-weight:800; cursor:pointer; }
+.mp-sign-btn:active{ transform:scale(.96); }
