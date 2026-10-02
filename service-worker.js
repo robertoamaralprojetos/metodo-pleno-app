@@ -3,7 +3,7 @@
 // sem internet). Estratégia: cache-first para assets estáticos, com atualização em
 // segundo plano; index.html sempre disponível offline como fallback de navegação.
 
-const CACHE_VERSION = 'metodo-pleno-v35';
+const CACHE_VERSION = 'metodo-pleno-v36';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -68,7 +68,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_VERSION && k !== 'mp-autobackup') /* mp-autobackup = cópia automática dos dados (v1.19.4): nunca apagar */.map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
