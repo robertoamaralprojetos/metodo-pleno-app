@@ -226,7 +226,8 @@ function repHtml(model, opts) {
     const bar = (label, value, color) => `<div style="margin:4px 0;"><div style="font-size:12px;color:#666;">${label}</div><div style="background:#eee;border-radius:6px;height:16px;"><div style="width:${Math.max(2, value)}%;background:${color};height:16px;border-radius:6px;"></div></div></div>`;
     const indexBlock = cur.complete
       ? `<div style="margin-bottom:10px;">Índice de Aptidão Funcional: <strong style="font-size:18px;color:${REP_GREEN};">${cur.index}</strong> de 100 — ${repEsc(cur.classification)}${prev && prev.complete ? ` (antes: ${prev.index})` : ''}.</div>
-         ${prev && prev.complete ? bar(`Antes (${Utils.formatDateBR(prev.date)})`, prev.index, '#b9c4bd') : ''}${bar(`Agora (${Utils.formatDateBR(cur.date)})`, cur.index, REP_GREEN)}`
+         ${prev && prev.complete ? bar(`Antes (${Utils.formatDateBR(prev.date)})`, prev.index, '#b9c4bd') : ''}${bar(`Agora (${Utils.formatDateBR(cur.date)})`, cur.index, REP_GREEN)}
+         ${prev && prev.complete && prev.testsCount !== cur.testsCount ? `<div style="font-size:11.5px;color:#777;margin-top:4px;">Índice atual calculado com ${cur.testsCount} testes e o anterior com ${prev.testsCount} — a comparação do índice é aproximada; compare também teste a teste abaixo.</div>` : ''}`
       : `<div style="margin-bottom:10px;">Avaliação de ${Utils.formatDateBR(cur.date)} ainda incompleta (faltam testes para calcular o índice).</div>`;
     const rows = fn.tests.map((t) => {
       const arrow = t.improved === true ? '<span style="color:#2e7d32;">▲ melhorou</span>' : (t.worse === true ? '<span style="color:#8a6d2b;">▼ piorou</span>' : (t.improved === false ? 'igual' : '—'));
@@ -465,4 +466,4 @@ function repBindEvents(container) {
 window.ReportView = { renderHtml: repRenderHtml, bindEvents: repBindEvents, whatsText: repWhatsText, buildModel: repBuildModel, html: repHtml };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.19.3';

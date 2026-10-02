@@ -47,6 +47,37 @@ const SFT_TABLES = {
       [85, -7.6, -3.8, 1.3, -14, -8.9, -3.8],
     ],
   },
+  // v1.19.2 — testes que completam a bateria do SFT. Percentis P25/P50/P75 do Senior
+  // Fitness Test Manual, 2ª ed. (Rikli & Jones, 2013); alcançar atrás das costas convertido
+  // de polegadas para cm (× 2,54). Inclui a faixa 90–94 anos.
+  step2min: {
+    label: 'Marcha Estacionária de 2 Minutos',
+    unit: 'passos/2min',
+    direction: 'higher',
+    rows: [
+      [60, 75, 91, 107, 87, 101, 115],
+      [65, 73, 90, 107, 86, 101, 116],
+      [70, 67, 84, 101, 80, 95, 110],
+      [75, 68, 84, 100, 73, 91, 109],
+      [80, 60, 75, 90, 71, 87, 103],
+      [85, 55, 70, 85, 59, 75, 91],
+      [90, 44, 58, 72, 52, 69, 86],
+    ],
+  },
+  backScratch: {
+    label: 'Alcançar Atrás das Costas',
+    unit: 'cm',
+    direction: 'higher',
+    rows: [
+      [60, -7.6, -1.8, 4.1, -16.8, -8.6, -0.5],
+      [65, -9.4, -3.0, 3.3, -18.8, -10.4, -2.0],
+      [70, -10.7, -4.3, 2.0, -19.8, -11.4, -3.0],
+      [75, -12.2, -5.3, 1.5, -22.9, -14.2, -5.6],
+      [80, -13.7, -6.6, 0.5, -23.6, -14.5, -5.3],
+      [85, -17.5, -9.9, -2.3, -23.9, -15.7, -7.6],
+      [90, -20.3, -11.4, -2.5, -26.4, -18.3, -10.2],
+    ],
+  },
   tug: {
     label: 'TUG - Timed Up and Go',
     unit: 's',
@@ -70,7 +101,10 @@ const UNIPODAL_CUTOFFS = [
   { max: Infinity, label: 'Bom', score: 4, includesMax: false },
 ];
 
-const TEST_ORDER = ['sitToStand', 'armCurl', 'chairSitReach', 'tug', 'unipodalStance'];
+// Ordem da bateria SFT + apoio unipodal. Os 5 "principais" são obrigatórios para calcular o
+// índice; marcha de 2 min e alcançar atrás das costas (v1.19.2) entram quando preenchidos.
+const TEST_ORDER = ['sitToStand', 'armCurl', 'step2min', 'chairSitReach', 'backScratch', 'tug', 'unipodalStance'];
+const CORE_TESTS = ['sitToStand', 'armCurl', 'chairSitReach', 'tug', 'unipodalStance'];
 
 const INDEX_CLASSIFICATION = [
   { max: 25, label: 'Frágil / Zona de Risco' },
@@ -193,20 +227,24 @@ function computeFunctionalAssessment(results, age, sex) {
     sumScore += classification.score;
   }
 
-  if (filledCount < TEST_ORDER.length) {
-    return { perTest, complete: false, index: null, classification: null };
+  const coreComplete = CORE_TESTS.every((k) => perTest[k]);
+  if (!coreComplete) {
+    return { perTest, complete: false, index: null, classification: null, testsCount: filledCount, testsTotal: TEST_ORDER.length };
   }
 
-  const index = Math.round(((sumScore - 5) / 15) * 100);
+  // Índice 0–100 normalizado pelo número de testes feitos (cada teste vale 1 a 4 pontos):
+  // com os 5 principais, é idêntico ao cálculo anterior — avaliações antigas não mudam.
+  const index = Math.round(((sumScore - filledCount) / (3 * filledCount)) * 100);
   const classification = INDEX_CLASSIFICATION.find((c) => index <= c.max).label;
 
-  return { perTest, complete: true, sumScore, index, classification };
+  return { perTest, complete: true, sumScore, index, classification, testsCount: filledCount, testsTotal: TEST_ORDER.length };
 }
 
 window.SFT = {
   TABLES: SFT_TABLES,
   UNIPODAL_CUTOFFS,
   TEST_ORDER,
+  CORE_TESTS,
   INDEX_CLASSIFICATION,
   getPercentiles,
   classifyTableTest,
@@ -216,4 +254,4 @@ window.SFT = {
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['evaluation-data.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['evaluation-data.js'] = 'v1.19.3';

@@ -2,11 +2,15 @@
 // Calculadora completa dos 5 testes com tabelas normativas (evaluation-data.js),
 // com o visual (af-band, tabela, gráfico) no padrão do protótipo do Método Pleno.
 
+// Ordem da bateria do SFT (Rikli & Jones) + apoio unipodal. signed = aceita valor negativo
+// (botão ± ao lado, porque o teclado numérico do celular nem sempre tem a tecla "−").
 const TEST_FIELDS = [
   { key: 'sitToStand', label: 'Levantar e Sentar na Cadeira', unit: 'repetições / 30s' },
   { key: 'armCurl', label: 'Flexão de Antebraço', unit: 'repetições / 30s' },
-  { key: 'chairSitReach', label: 'Sentar e Alcançar o Pé na Cadeira', unit: 'cm (pode ser negativo)' },
-  { key: 'tug', label: 'TUG — Timed Up and Go', unit: 'segundos (menor é melhor)' },
+  { key: 'step2min', label: 'Marcha Estacionária de 2 Minutos', unit: 'passos em 2 min (conta o joelho direito na altura marcada)', optional: true, integer: true },
+  { key: 'chairSitReach', label: 'Sentar e Alcançar o Pé na Cadeira', unit: 'cm — use ± se não alcançar o pé', signed: true },
+  { key: 'backScratch', label: 'Alcançar Atrás das Costas', unit: 'cm — use ± se os dedos não se encostarem (melhor de 2, lado preferido)', optional: true, signed: true },
+  { key: 'tug', label: 'TUG — Levantar, caminhar 2,44 m e sentar', unit: 'segundos (menor é melhor)' },
   { key: 'unipodalStance', label: 'Apoio Unipodal', unit: 'segundos' }, // representa o par de pernas — ver CHART_FIELDS
 ];
 
@@ -83,7 +87,7 @@ function evalRenderHtml() {
     return `
       <tr>
         <td>${Utils.formatDateBR(rec.date)}</td>
-        <td style="font-weight:700;">${assessment.complete ? assessment.index : '—'}</td>
+        <td style="font-weight:700;">${assessment.complete ? assessment.index : '—'}${assessment.complete ? `<div style="font-size:11px;font-weight:400;color:var(--texto-suave);">${assessment.testsCount} de ${assessment.testsTotal} testes</div>` : ''}</td>
         <td>${Utils.escapeHtml(assessment.complete ? assessment.classification : 'incompleta')}</td>
         <td><button class="mp-btn-danger" data-del-assess="${rec.id}" type="button">Excluir</button></td>
       </tr>`;
@@ -95,7 +99,7 @@ function evalRenderHtml() {
   return `
   <div class="mp-card">
     <h3>Nova avaliação funcional</h3>
-    <div class="mp-sub">Senior Fitness Test (Rikli &amp; Jones) — preencha os 5 testes para gerar o Índice de Aptidão Funcional (0–100) automaticamente.</div>
+    <div class="mp-sub">Senior Fitness Test (Rikli &amp; Jones) — bateria completa de 6 testes + apoio unipodal (equilíbrio). Os 5 testes principais são obrigatórios; a <strong>marcha estacionária de 2 min</strong> e o <strong>alcançar atrás das costas</strong> completam a bateria e entram no Índice de Aptidão Funcional (0–100) quando preenchidos.</div>
     ${reassessment ? `<div style="margin:-4px 0 14px;"><span class="mp-pill mp-pill-${reassessment.level}">${Utils.escapeHtml(reassessment.text)}</span></div>` : ''}
     <div class="mp-af-band">
       <div style="background:var(--alerta);"></div><div style="background:var(--dourado-claro);"></div>
@@ -117,8 +121,8 @@ function evalRenderHtml() {
       <div class="mp-form-row mp-row4">
         ${TEST_FIELDS.filter((f) => f.key !== 'unipodalStance').map((f) => `
           <div class="mp-field">
-            <label>${Utils.escapeHtml(f.label)}</label>
-            <input type="number" step="0.1" id="mp-a-${f.key}">
+            <label>${Utils.escapeHtml(f.label)}${f.optional ? ' <span style="text-transform:none;letter-spacing:0;font-weight:400;">(completa o SFT)</span>' : ''}</label>
+            ${f.signed ? `<div class="mp-signed-input"><button type="button" class="mp-sign-btn" data-sign-for="mp-a-${f.key}" aria-label="Inverter sinal (positivo/negativo)">±</button><input type="number" step="0.1" inputmode="decimal" id="mp-a-${f.key}"></div>` : `<input type="number" step="${f.integer ? '1' : '0.1'}" inputmode="${f.integer ? 'numeric' : 'decimal'}" id="mp-a-${f.key}">`}
             <div class="mp-tag-input-hint">${f.unit}</div>
           </div>
         `).join('')}
@@ -211,7 +215,8 @@ function recomputePreview(container) {
       <div style="font-family:'Fraunces',serif;font-weight:600;font-size:30px;color:var(--verde-principal);">${assessment.complete ? assessment.index : '—'}</div>
       <div>
         <div style="font-size:12px;color:var(--texto-suave);">Índice de Aptidão Funcional (0–100)</div>
-        <span class="mp-pill ${assessment.complete ? 'mp-pill-leve' : ''}" style="${assessment.complete ? '' : 'background:var(--borda);color:var(--texto-suave);'}">${assessment.complete ? assessment.classification : 'Preencha todos os testes'}</span>
+        <span class="mp-pill ${assessment.complete ? 'mp-pill-leve' : ''}" style="${assessment.complete ? '' : 'background:var(--borda);color:var(--texto-suave);'}">${assessment.complete ? assessment.classification : 'Preencha os 5 testes principais'}</span>
+        ${assessment.complete ? `<div style="font-size:11.5px;color:var(--texto-suave);margin-top:4px;">Calculado com ${assessment.testsCount} de ${assessment.testsTotal} testes${assessment.testsCount < assessment.testsTotal ? ' — preencha a marcha de 2 min e o alcançar atrás das costas para a bateria completa' : ' (bateria completa)'}.</div>` : ''}
       </div>
     </div>
   `;
@@ -287,6 +292,17 @@ function evalAfterRender(container) {
 }
 
 function evalBindEvents(container) {
+  container.querySelectorAll('[data-sign-for]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const inp = container.querySelector('#' + btn.dataset.signFor);
+      if (!inp) return;
+      if (inp.value === '') { Utils.toast('Digite o valor e depois toque em ± para deixá-lo negativo.', 'info'); inp.focus(); return; }
+      const v = Number(inp.value);
+      if (!Number.isFinite(v) || v === 0) return;
+      inp.value = String(-v);
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  });
   container.querySelectorAll('#mp-assess-form input, #mp-assess-form select').forEach((inp) => {
     inp.addEventListener('input', () => recomputePreview(container));
   });
@@ -301,7 +317,7 @@ function evalBindEvents(container) {
     const results = getFormResults(container);
     const assessment = SFT.computeFunctionalAssessment(results, age, sex);
     if (!assessment.complete) {
-      Utils.toast('Preencha os 5 testes (incluindo as duas pernas do Apoio Unipodal) para salvar a avaliação.', 'error');
+      Utils.toast('Preencha os 5 testes principais (incluindo as duas pernas do Apoio Unipodal) para salvar a avaliação.', 'error');
       return;
     }
     const record = {
@@ -339,4 +355,4 @@ function evalBindEvents(container) {
 window.EvaluationView = { renderHtml: evalRenderHtml, bindEvents: evalBindEvents, afterRender: evalAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['evaluation.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['evaluation.js'] = 'v1.19.3';
