@@ -205,7 +205,7 @@ function readUnitFieldValues(container, idPrefix) {
 // "forca" e "aerobico" têm campos próprios; os demais (funcional, localizada, pilates,
 // outro) usam um bloco genérico: atividade, tempo e, opcionalmente, séries × repetições.
 const TRAINING_TYPE_OPTIONS = [
-  { value: 'forca', label: 'Força (musculação)' },
+  { value: 'forca', label: 'Musculação' },
   { value: 'aerobico', label: 'Aeróbico' },
   { value: 'funcional', label: 'Treinamento Funcional' },
   { value: 'localizada', label: 'Ginástica Localizada' },
@@ -439,6 +439,19 @@ function genericFieldHtml(idPrefix, type, values, opts = {}) {
     <div class="mp-field"><label>Tempo (min)</label><input type="number" min="0" step="1" id="${idPrefix}-g-duration" value="${values.durationMinutes ?? ''}"></div>
     <div class="mp-field"><label>Séries (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-series" value="${values.series ?? ''}"></div>
     <div class="mp-field"><label>Repetições (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-reps" value="${values.reps ?? ''}"></div>
+    ${opts.lockType ? `
+    <div class="mp-field"><label>Carga${values.load ? ` (${esc(formatUnitLabel(values.unit, values.unitDetail))})` : ' (opcional)'}</label><input type="number" min="0" step="0.5" id="${idPrefix}-g-load" value="${values.load || ''}"></div>` : `
+    <div class="mp-field"><label>Carga alvo (opcional)</label><input type="number" min="0" step="0.5" id="${idPrefix}-g-load" value="${values.load || ''}"></div>
+    ${unitFieldHtml(idPrefix + '-g', values.unit || '', values.unitDetail || '', opts.elasticColors)}
+    <div class="mp-field">
+      <label>Tempo de descanso (opcional)</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="${idPrefix}-g-rest-min" min="0" step="1" value="${values.restSeconds ? Math.floor(values.restSeconds / 60) : ''}" placeholder="0" style="width:70px;" aria-label="Minutos">
+        <span style="font-size:12.5px;color:var(--texto-suave);">min</span>
+        <input type="number" id="${idPrefix}-g-rest-sec" min="0" max="59" step="5" value="${values.restSeconds ? values.restSeconds % 60 : ''}" placeholder="0" style="width:70px;" aria-label="Segundos">
+        <span style="font-size:12.5px;color:var(--texto-suave);">seg</span>
+      </div>
+    </div>`}
   `;
 }
 function readGenericFieldValues(container, idPrefix, type) {
@@ -452,6 +465,10 @@ function readGenericFieldValues(container, idPrefix, type) {
     durationMinutes: Number(q('duration')?.value) || 0,
     series: parseInt(q('series')?.value, 10) || null,
     reps: parseInt(q('reps')?.value, 10) || null,
+    load: parseFloat(String(q('load')?.value || '').replace(',', '.')) || null,
+    // Unidade e descanso só existem no formulário de planejamento (no registro vêm do plano).
+    ...(container.querySelector(`#${idPrefix}-g-unidade`) ? readUnitFieldValues(container, idPrefix + '-g') : {}),
+    ...(q('rest-min') ? { restSeconds: (parseInt(q('rest-min').value, 10) || 0) * 60 + (parseInt(q('rest-sec')?.value, 10) || 0) } : {}),
   };
 }
 function formatGenericSummary(item) {
@@ -459,6 +476,8 @@ function formatGenericSummary(item) {
   if (item.durationMinutes) parts.push(`${item.durationMinutes} min`);
   if (item.series && item.reps) parts.push(`${item.series}×${item.reps}`);
   else if (item.series) parts.push(`${item.series} séries`);
+  if (item.load) parts.push(`${String(item.load).replace('.', ',')} ${formatUnitLabel(item.unit, item.unitDetail)}`.trim());
+  if (item.restSeconds) parts.push(`desc: ${Utils.formatRestLabel(item.restSeconds)}`);
   return parts.join(' · ') || '—';
 }
 // Resumo de qualquer item/sessão que não seja força.
@@ -542,4 +561,4 @@ window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.2';
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.5';

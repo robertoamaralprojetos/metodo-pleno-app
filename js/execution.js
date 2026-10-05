@@ -343,6 +343,10 @@ function execBindEvents(container) {
           durationMinutes: g.durationMinutes,
           series: g.series,
           reps: g.reps,
+          load: g.load,
+          unit: g.load ? (item.unit || 'kg') : '',
+          unitDetail: g.load ? (item.unitDetail || '') : '',
+          restSeconds: item.restSeconds || 0,
           ...Cardio.hrBlockRead(container, rx),
           borg: realBorg,
           notes: realObs,
@@ -425,4 +429,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.5';

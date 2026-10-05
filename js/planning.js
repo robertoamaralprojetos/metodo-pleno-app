@@ -60,7 +60,7 @@ function exerciseItemFormHtml(idPrefix, editingItem, elasticColors, datalistId) 
     </div>
     <div id="${idPrefix}-generic-fields" style="${isGenericType(type) ? '' : 'display:none;'}">
       <div class="mp-form-row mp-row3">
-        ${genericFieldHtml(idPrefix, type, genericItem)}
+        ${genericFieldHtml(idPrefix, type, genericItem, { elasticColors })}
       </div>
     </div>
   `;
@@ -81,6 +81,7 @@ function bindExerciseItemFormEvents(container, idPrefix) {
     if (nameInput && GENERIC_PLACEHOLDERS[typeSelect.value]) nameInput.placeholder = GENERIC_PLACEHOLDERS[typeSelect.value];
   });
   bindUnitFieldEvents(container, idPrefix);
+  bindUnitFieldEvents(container, idPrefix + '-g');
   bindAerobicFieldEvents(container, idPrefix);
 }
 
@@ -111,7 +112,8 @@ function readExerciseItemForm(container, idPrefix) {
   if (isGenericType(type)) {
     const g = readGenericFieldValues(container, idPrefix, type);
     if (type === 'outro' && !g.trainingTypeCustom) return { error: 'Informe qual é o tipo de treino.' };
-    return { type, ...g, restSeconds: 0 };
+    if (!g.load) { g.unit = ''; g.unitDetail = ''; }
+    return { type, ...g, restSeconds: g.restSeconds || 0 };
   }
   const exerciseName = container.querySelector(`#${idPrefix}-exercicio`).value.trim();
   if (!exerciseName) return { error: 'Preencha o nome do exercício.' };
@@ -155,7 +157,7 @@ function planRenderHtml() {
       <td>${i + 1}</td>
       <td>${planItemNameCell(it)}</td>
       ${planItemDetailCells(it)}
-      <td>${!isStrengthType(it.type) ? '—' : restLabel(it.restSeconds)}</td>
+      <td>${!isStrengthType(it.type) && !it.restSeconds ? '—' : restLabel(it.restSeconds)}</td>
       <td>${it.completed ? '<span class="mp-pill mp-pill-leve">concluído</span>' : '<span class="mp-pill" style="background:var(--borda);color:var(--texto-suave);">pendente</span>'}</td>
       <td style="white-space:nowrap;">
         <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-planitem="${it.id}" type="button">${it.id === editingId ? 'Editando…' : 'Editar'}</button>
@@ -185,7 +187,7 @@ function planRenderHtml() {
       <td>${i + 1}</td>
       <td>${planItemNameCell(it)}</td>
       ${planItemDetailCells(it)}
-      <td>${!isStrengthType(it.type) ? '—' : restLabel(it.restSeconds)}</td>
+      <td>${!isStrengthType(it.type) && !it.restSeconds ? '—' : restLabel(it.restSeconds)}</td>
       <td style="white-space:nowrap;">
         <button class="mp-btn mp-btn-ghost mp-btn-sm" data-edit-fichaitem="${it.id}" type="button">${it.id === fichaEditingId ? 'Editando…' : 'Editar'}</button>
         ${ProgressionView.adjustButtonHtml(it)}
@@ -492,4 +494,4 @@ function planBindEvents(container) {
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.5';
