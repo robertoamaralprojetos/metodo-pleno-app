@@ -440,7 +440,8 @@ function genericFieldHtml(idPrefix, type, values, opts = {}) {
     <div class="mp-field"><label>Séries (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-series" value="${values.series ?? ''}"></div>
     <div class="mp-field"><label>Repetições (opcional)</label><input type="number" min="0" step="1" id="${idPrefix}-g-reps" value="${values.reps ?? ''}"></div>
     ${opts.lockType ? `
-    <div class="mp-field"><label>Carga${values.load ? ` (${esc(formatUnitLabel(values.unit, values.unitDetail))})` : ' (opcional)'}</label><input type="number" min="0" step="0.5" id="${idPrefix}-g-load" value="${values.load || ''}"></div>` : `
+    <div class="mp-field"><label>Carga${values.load ? '' : ' (opcional)'}</label><input type="number" min="0" step="0.5" id="${idPrefix}-g-load" value="${values.load || ''}"></div>
+    ${unitFieldHtml(idPrefix + '-g', values.unit || 'kg', values.unitDetail || '', opts.elasticColors)}` : `
     <div class="mp-field"><label>Carga alvo (opcional)</label><input type="number" min="0" step="0.5" id="${idPrefix}-g-load" value="${values.load || ''}"></div>
     ${unitFieldHtml(idPrefix + '-g', values.unit || '', values.unitDetail || '', opts.elasticColors)}
     <div class="mp-field">
@@ -477,6 +478,7 @@ function formatGenericSummary(item) {
   if (item.series && item.reps) parts.push(`${item.series}×${item.reps}`);
   else if (item.series) parts.push(`${item.series} séries`);
   if (item.load) parts.push(`${String(item.load).replace('.', ',')} ${formatUnitLabel(item.unit, item.unitDetail)}`.trim());
+  else if (item.unit === 'peso_corporal') parts.push('Peso Corporal');
   if (item.restSeconds) parts.push(`desc: ${Utils.formatRestLabel(item.restSeconds)}`);
   return parts.join(' · ') || '—';
 }
@@ -561,4 +563,4 @@ window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.5';
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.6';

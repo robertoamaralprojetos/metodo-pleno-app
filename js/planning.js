@@ -112,7 +112,7 @@ function readExerciseItemForm(container, idPrefix) {
   if (isGenericType(type)) {
     const g = readGenericFieldValues(container, idPrefix, type);
     if (type === 'outro' && !g.trainingTypeCustom) return { error: 'Informe qual é o tipo de treino.' };
-    if (!g.load) { g.unit = ''; g.unitDetail = ''; }
+    if (!g.load && g.unit !== 'peso_corporal') { g.unit = ''; g.unitDetail = ''; }
     return { type, ...g, restSeconds: g.restSeconds || 0 };
   }
   const exerciseName = container.querySelector(`#${idPrefix}-exercicio`).value.trim();
@@ -494,4 +494,4 @@ function planBindEvents(container) {
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.5';
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.6';

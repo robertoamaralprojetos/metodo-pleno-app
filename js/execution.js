@@ -103,16 +103,18 @@ function execRenderHtml() {
   const borgMode = dailyMeta?.borgMode || 'perExercise';
   const isOverallMode = borgMode === 'overall';
 
+  const execElasticColors = elasticColorList();
   const checklistCards = pendentes.map((it) => {
     const isAerobico = it.type === 'aerobico';
     const isStrength = isStrengthType(it.type);
     const rx = `mp-rx-${it.id}`;
     const detailInputs = isAerobico
       ? aerobicFieldHtml(rx, it, { lockType: true })
-      : !isStrength ? genericFieldHtml(rx, it.type, it, { lockType: true }) : `
+      : !isStrength ? genericFieldHtml(rx, it.type, it, { lockType: true, elasticColors: execElasticColors }) : `
         <div class="mp-field"><label>Séries</label><input type="number" min="0" step="1" id="mp-real-series-${it.id}" value="${it.series}"></div>
         <div class="mp-field"><label>Reps</label><input type="number" min="0" step="1" id="mp-real-reps-${it.id}" value="${it.reps}"></div>
         <div class="mp-field"><label>Carga</label><input type="number" min="0" step="0.5" id="mp-real-carga-${it.id}" value="${it.load}"></div>
+        ${unitFieldHtml('mp-real-u-' + it.id, it.unit || 'kg', it.unitDetail || '', execElasticColors)}
       `;
     const alvoText = !isStrength ? formatNonStrengthSummary({ ...it, hrZone: null }) + (it.hrZone ? ` · ${Cardio.zoneShort(it.hrZone, currentStudent())}` : '') : `${it.series}×${it.reps} · ${it.load} ${Utils.escapeHtml(formatUnitLabel(it.unit, it.unitDetail))} · descanso ${Utils.formatRestLabel(it.restSeconds)}`;
     return `
@@ -344,8 +346,8 @@ function execBindEvents(container) {
           series: g.series,
           reps: g.reps,
           load: g.load,
-          unit: g.load ? (item.unit || 'kg') : '',
-          unitDetail: g.load ? (item.unitDetail || '') : '',
+          unit: g.load || g.unit === 'peso_corporal' ? (g.unit || 'kg') : '',
+          unitDetail: g.load || g.unit === 'peso_corporal' ? (g.unitDetail || '') : '',
           restSeconds: item.restSeconds || 0,
           ...Cardio.hrBlockRead(container, rx),
           borg: realBorg,
@@ -366,8 +368,7 @@ function execBindEvents(container) {
           series: realSeries,
           reps: realReps,
           load: realCarga,
-          unit: item.unit,
-          unitDetail: item.unitDetail,
+          ...readUnitFieldValues(container, 'mp-real-u-' + itemId),
           borg: realBorg,
           notes: realObs,
           planItemId: item.id,
@@ -390,6 +391,11 @@ function execBindEvents(container) {
   Cardio.cardBind(container, currentStudent(), 'cd-exec');
   const planToday = getPlanByDate(AppState.execDate);
   (planToday ? planToday.items : []).filter((it) => !it.completed && !isStrengthType(it.type)).forEach((it) => Cardio.hrBlockBind(container, 'mp-rx-' + it.id));
+  // Unidade da carga no registro (v1.19.6): mostra cor do elástico / descrição quando preciso.
+  (planToday ? planToday.items : []).filter((it) => !it.completed).forEach((it) => {
+    bindUnitFieldEvents(container, 'mp-real-u-' + it.id);
+    bindUnitFieldEvents(container, 'mp-rx-' + it.id + '-g');
+  });
 
   const form = container.querySelector('#mp-session-form');
   if (form) {
@@ -429,4 +435,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.5';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.6';
