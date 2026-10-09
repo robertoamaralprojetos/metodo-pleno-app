@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.6';
+const APP_VERSION = 'v1.19.7';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -30,18 +30,18 @@ const MODULE_MIN = {
   'license.js': 'v1.19.0',
   'documents.js': 'v1.17.0',
   'registration.js': 'v1.19.0',
-  'payment-logic.js': 'v1.13.1',
-  'payments.js': 'v1.13.1',
-  'admin.js': 'v1.17.0',
+  'payment-logic.js': 'v1.19.7',
+  'payments.js': 'v1.19.7',
+  'admin.js': 'v1.19.7',
   'anamnesis.js': 'v1.17.0',
   'progression.js': 'v1.19.0',
-  'planning.js': 'v1.19.6',
-  'execution.js': 'v1.19.6',
+  'planning.js': 'v1.19.7',
+  'execution.js': 'v1.19.7',
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.19.6',
+  'app.js': 'v1.19.7',
 };
 
 function versionParts(v) {
@@ -71,7 +71,7 @@ const HELP_TOPICS = [
   { title: '📊 Administrativo', text: 'Visão de todos os alunos ao mesmo tempo: situação de pagamento (em dia/atrasado) e faturamento do mês.' },
   { title: '⚙️ Configurações', text: 'Perfil do Profissional (nome, CREF, contatos, logo e cor do app — usados no cabeçalho e em todos os relatórios), o texto das Orientações e regras para o aluno, as regras de desmarcação/reposição/férias e defina um PIN de acesso opcional para proteger os dados do app.' },
   { title: 'Cadastro do Aluno', text: 'Dados pessoais, contato de emergência, atividade, plano de aulas/cobrança e atestado médico do aluno selecionado. Em "Documentos do aluno": colher a assinatura das Orientações e do PAR-Q com o dedo na tela, enviar as orientações para leitura e compartilhar os PDFs assinados pelo WhatsApp.' },
-  { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias.' },
+  { title: 'Controle de Pagamento', text: 'Registro de pagamentos, ciclo de cobrança (aulas dadas/contratadas) e desmarcações/reposições/férias. Ao registrar uma desmarcação com direito, informe (ou agende depois) a data da reposição: quando você registrar treino nesse dia, o app dá baixa sozinho. Treino em dia fora da agenda fixa do aluno faz o app perguntar se foi reposição. A reposição conta como aula dada no ciclo em que acontece. O Administrativo mostra as reposições de hoje e as que estão perto do prazo.' },
   { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
   { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
   { title: 'Planejar Aula', text: 'Monte a sequência da aula: força (séries, reps, carga, descanso), aeróbico (corrida e caminhada ao ar livre por tempo ou distância, intervalados, esteira, bicicleta, elíptico) com zona de FC alvo, Treinamento Funcional, Ginástica Localizada, Pilates ou outro tipo. O card ❤️ mostra a FC máxima (Tanaka ou medida) e as zonas de treino (Karvonen, com a FC de repouso do Cadastro).' },
@@ -441,4 +441,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.6';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.7';

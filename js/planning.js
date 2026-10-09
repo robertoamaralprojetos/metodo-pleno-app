@@ -22,7 +22,11 @@ function planItemNameCell(it) {
 // Força/Aeróbico, com os campos correspondentes. idPrefix distingue os ids na página
 // (ex: "mp-p" para o plano do dia, "mp-t" para a ficha-modelo).
 function exerciseItemFormHtml(idPrefix, editingItem, elasticColors, datalistId) {
-  const type = editingItem?.type && TRAINING_TYPE_OPTIONS.some((o) => o.value === editingItem.type) ? editingItem.type : 'forca';
+  // Sem item em edição, mantém o último tipo escolhido neste formulário (v1.19.7): ao montar
+  // uma aula de funcional, não precisa trocar o tipo a cada exercício.
+  const lastType = (AppState.lastItemType || {})[idPrefix];
+  const wanted = editingItem ? editingItem.type : lastType;
+  const type = wanted && TRAINING_TYPE_OPTIONS.some((o) => o.value === wanted) ? wanted : 'forca';
   const forcaItem = type === 'forca' ? editingItem : null;
   const aerobicoItem = type === 'aerobico' ? editingItem : null;
   const genericItem = isGenericType(type) ? editingItem : null;
@@ -71,6 +75,7 @@ function bindExerciseItemFormEvents(container, idPrefix) {
   const forcaWrap = container.querySelector(`#${idPrefix}-forca-fields`);
   const aerobicoWrap = container.querySelector(`#${idPrefix}-aerobico-fields`);
   typeSelect?.addEventListener('change', () => {
+    AppState.lastItemType = { ...(AppState.lastItemType || {}), [idPrefix]: typeSelect.value };
     if (forcaWrap) forcaWrap.style.display = typeSelect.value === 'forca' ? '' : 'none';
     if (aerobicoWrap) aerobicoWrap.style.display = typeSelect.value === 'aerobico' ? '' : 'none';
     const genericWrap = container.querySelector(`#${idPrefix}-generic-fields`);
@@ -494,4 +499,4 @@ function planBindEvents(container) {
 window.PlanningView = { renderHtml: planRenderHtml, bindEvents: planBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.6';
+(window.MP_BUILD = window.MP_BUILD || {})['planning.js'] = 'v1.19.7';

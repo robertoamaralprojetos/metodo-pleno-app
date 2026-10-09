@@ -16,7 +16,8 @@ async function ensureAdminData() {
       const cycle = PaymentLogic.currentCycle(s, payments);
       const overdue = cycle ? Utils.daysUntil(cycle.end) < 0 : null;
       const templates = await DB.getAllByIndex(DB.STORES.workoutTemplates, 'byStudent', s.id);
-      rows.push({ student: s, payments, cycle, overdue, templates });
+      const cancellations = await DB.getAllByIndex(DB.STORES.cancellations, 'byStudent', s.id);
+      rows.push({ student: s, payments, cycle, overdue, templates, cancellations });
     }
     const allPayments = rows.flatMap((r) => r.payments);
     AppState.adminData = { rows, allPayments };
@@ -87,8 +88,45 @@ function adminRenderHtml() {
       <td>${a.result ? Utils.escapeHtml(window.ParqTriage.resultLabel(a.result)) : '—'}</td>
     </tr>`).join('');
 
+  // Reposições (v1.19.7): agendadas para hoje/próximos 7 dias, agendadas que já passaram sem
+  // baixa, e pendentes sem data cujo prazo vence em até 7 dias (ou venceu há até 14 dias).
+  const settingsA = AppState.settings || window.DEFAULT_SETTINGS;
+  const in7 = Utils.addDaysISO(today, 7);
+  const makeupAlerts = rows.flatMap(({ student, payments, cancellations }) => {
+    const cycles = PaymentLogic.buildCycles(student, payments);
+    const rights = PaymentLogic.computeCancellationRights(cancellations || [], cycles, settingsA);
+    return PaymentLogic.openMakeups(cancellations || [], rights).map((c) => {
+      const deadline = rights[c.id].deadline;
+      if (c.makeupDate) {
+        if (c.makeupDate > in7) return null;
+        const label = c.makeupDate === today ? 'Hoje' : c.makeupDate < today ? `Era ${Utils.formatDateBR(c.makeupDate)} — confirme` : `Agendada ${Utils.formatDateBR(c.makeupDate)}`;
+        return { name: student.name, classDate: c.classDate, sortKey: c.makeupDate, label, level: c.makeupDate <= today ? 'alto' : 'moderado' };
+      }
+      if (!deadline || deadline > in7 || deadline < Utils.addDaysISO(today, -14)) return null;
+      return { name: student.name, classDate: c.classDate, sortKey: deadline, label: deadline < today ? `Prazo vencido em ${Utils.formatDateBR(deadline)}` : `Sem data — vence ${Utils.formatDateBR(deadline)}`, level: 'alto' };
+    }).filter(Boolean);
+  }).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  const makeupRows = makeupAlerts.map((m) => `
+    <tr>
+      <td>${Utils.escapeHtml(m.name)}</td>
+      <td>${Utils.formatDateBR(m.classDate)}</td>
+      <td><span class="mp-pill mp-pill-${m.level}">${Utils.escapeHtml(m.label)}</span></td>
+    </tr>`).join('');
+
   return `
   <div class="mp-card">
+    <h3>🔁 Reposições</h3>
+    <div class="mp-sub" style="margin-top:10px;">Reposições de hoje e dos próximos 7 dias, e as que estão sem data perto do prazo. Agende ou dê baixa em Controle de Pagamento do aluno.</div>
+    ${makeupAlerts.length ? `
+    <div class="mp-table-scroll" style="margin-top:14px;">
+    <table class="mp-table">
+      <thead><tr><th>Aluno</th><th>Aula desmarcada</th><th>Reposição</th></tr></thead>
+      <tbody>${makeupRows}</tbody>
+    </table>
+    </div>` : `<div class="mp-sub" style="margin:14px 0 0;">Nenhuma reposição para os próximos dias. ✓</div>`}
+  </div>
+
+  <div class="mp-card" style="margin-top:20px;">
     <h3>Faturamento</h3>
     <div class="mp-kpis" style="margin-bottom:0;">
       <div class="mp-kpi"><div class="mp-kpi-label">Faturamento do mês corrente</div><div class="mp-kpi-value">${Utils.formatBRL(monthTotal)}</div></div>
@@ -172,4 +210,4 @@ window.AdminView = { renderHtml: adminRenderHtml, bindEvents: adminBindEvents, a
 window.invalidateAdminData = invalidateAdminData;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.17.0';
+(window.MP_BUILD = window.MP_BUILD || {})['admin.js'] = 'v1.19.7';

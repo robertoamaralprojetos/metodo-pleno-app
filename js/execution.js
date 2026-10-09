@@ -132,8 +132,8 @@ function execRenderHtml() {
         <label>Observações (opcional)</label>
         <textarea id="mp-real-obs-${it.id}" placeholder="Dor, adaptação, execução, etc.">${Utils.escapeHtml(it.notes || '')}</textarea>
       </div>
-      ${!isStrength ? Cardio.hrBlockHtml(rx) : ''}
-      ${!isStrength ? '' : `
+      ${isAerobico ? Cardio.hrBlockHtml(rx) : ''}
+      ${!isStrength && !(it.restSeconds > 0) ? '' : `
       <div class="mp-timer" data-item-id="${it.id}">
         <div class="mp-timer-display" id="mp-timer-display-${it.id}">${Utils.formatMMSS(defaultRestSeconds(it))}</div>
         <div class="mp-timer-controls">
@@ -384,13 +384,17 @@ function execBindEvents(container) {
       const ok1 = await AppShell.guardedPut(DB.STORES.sessions, session);
       const ok2 = await AppShell.guardedPut(DB.STORES.lessonPlans, plan);
       if (!ok1 || !ok2) render();
+      // Reposições (v1.19.7): no 1º exercício concluído do dia, confere se é reposição.
+      if (window.MakeupLink && AppState.data.sessions.filter((x) => x.date === session.date).length === 1) {
+        try { await MakeupLink.onSession(session.date); } catch (e) { /* não interrompe o registro */ }
+      }
     });
   });
 
   bindExerciseItemFormEvents(container, 'mp-f');
   Cardio.cardBind(container, currentStudent(), 'cd-exec');
   const planToday = getPlanByDate(AppState.execDate);
-  (planToday ? planToday.items : []).filter((it) => !it.completed && !isStrengthType(it.type)).forEach((it) => Cardio.hrBlockBind(container, 'mp-rx-' + it.id));
+  (planToday ? planToday.items : []).filter((it) => !it.completed && it.type === 'aerobico').forEach((it) => Cardio.hrBlockBind(container, 'mp-rx-' + it.id));
   // Unidade da carga no registro (v1.19.6): mostra cor do elástico / descrição quando preciso.
   (planToday ? planToday.items : []).filter((it) => !it.completed).forEach((it) => {
     bindUnitFieldEvents(container, 'mp-real-u-' + it.id);
@@ -435,4 +439,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.6';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.7';

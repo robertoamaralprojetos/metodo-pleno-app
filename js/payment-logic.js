@@ -142,9 +142,18 @@ function makeupDisplayStatus(cancellation, rights) {
   if (!rights || !rights.hasRight) {
     return { label: 'Sem direito a reposição', level: 'alto', detail: rights?.reasonNoRight || '' };
   }
-  if (cancellation.makeupStatus === 'reposta') return { label: 'Reposta ✓', level: 'leve', detail: '' };
-
+  if (cancellation.makeupStatus === 'reposta') {
+    return { label: cancellation.makeupDoneDate ? `Reposta em ${Utils.formatDateBR(cancellation.makeupDoneDate)} ✓` : 'Reposta ✓', level: 'leve', detail: '' };
+  }
   const expired = rights.deadline && Utils.daysUntil(rights.deadline) < 0;
+  // Reposição agendada (v1.19.7)
+  if (cancellation.makeupDate) {
+    const late = rights.deadline && cancellation.makeupDate > rights.deadline;
+    if (cancellation.makeupDate < Utils.todayISO()) {
+      return { label: `Agendada p/ ${Utils.formatDateBR(cancellation.makeupDate)} — confirme se foi reposta`, level: 'alto', detail: '' };
+    }
+    return { label: `Agendada p/ ${Utils.formatDateBR(cancellation.makeupDate)}${cancellation.makeupDate === Utils.todayISO() ? ' (hoje)' : ''}`, level: late ? 'alto' : 'moderado', detail: late ? `Data marcada depois do prazo (${Utils.formatDateBR(rights.deadline)}).` : '' };
+  }
   const transferCount = cancellation.transferCount || 0;
   if (transferCount > 0) {
     const suffix = transferCount > 1 ? ` (${transferCount}x)` : '';
@@ -153,6 +162,21 @@ function makeupDisplayStatus(cancellation, rights) {
   }
   if (expired) return { label: 'Expirada (prazo perdido)', level: 'alto', detail: '' };
   return { label: `Pendente — repor até ${Utils.formatDateBR(rights.deadline)}`, level: 'moderado', detail: '' };
+}
+
+// Reposições em aberto (com direito e ainda não repostas), mais antigas primeiro.
+function openMakeups(cancellations, rights) {
+  return cancellations
+    .filter((c) => !c.isVacation && rights[c.id]?.hasRight && c.makeupStatus !== 'reposta')
+    .sort((a, b) => (a.classDate || '').localeCompare(b.classDate || ''));
+}
+
+// Resumo para o card "Ciclo atual": pendentes (sem data), agendadas e repostas dentro do ciclo.
+function makeupSummary(cancellations, rights, cycle) {
+  const open = openMakeups(cancellations, rights).filter((c) => !(rights[c.id].deadline && Utils.daysUntil(rights[c.id].deadline) < 0 && !c.makeupDate));
+  const scheduled = open.filter((c) => c.makeupDate).length;
+  const doneInCycle = cycle ? cancellations.filter((c) => c.makeupStatus === 'reposta' && c.makeupDoneDate && c.makeupDoneDate >= cycle.start && c.makeupDoneDate <= cycle.end).length : 0;
+  return { pending: open.length - scheduled, scheduled, doneInCycle };
 }
 
 // Conta quantas aulas (pelos dias da semana cadastrados) caem no intervalo de férias,
@@ -181,8 +205,10 @@ window.PaymentLogic = {
   countClassDaysInRange,
   computeCancellationRights,
   makeupDisplayStatus,
+  openMakeups,
+  makeupSummary,
   vacationCharge,
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['payment-logic.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['payment-logic.js'] = 'v1.19.7';
