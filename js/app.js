@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.8';
+const APP_VERSION = 'v1.19.9';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -27,7 +27,7 @@ const MODULE_MIN = {
   'pin-lock.js': 'v1.16.0',
   'settings.js': 'v1.19.1',
   'profile.js': 'v1.18.0',
-  'license.js': 'v1.19.0',
+  'license.js': 'v1.19.9',
   'documents.js': 'v1.17.0',
   'registration.js': 'v1.19.0',
   'payment-logic.js': 'v1.19.7',
@@ -41,7 +41,7 @@ const MODULE_MIN = {
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.19.8',
+  'app.js': 'v1.19.9',
 };
 
 function versionParts(v) {
@@ -441,4 +441,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.8';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.9';

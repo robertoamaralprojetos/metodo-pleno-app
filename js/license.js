@@ -240,7 +240,8 @@ function licSettingsCardHtml() {
     ${i ? `
     <div style="margin:10px 0 12px;">${pill}</div>
     <div class="mp-sub" style="margin:0 0 4px;color:var(--texto);">Licenciado para: <strong>${esc(i.name)}</strong>${i.cref ? ` · CREF ${esc(i.cref)}` : ''}</div>
-    <div class="mp-sub" style="margin:0 0 12px;">Licença ${esc(licValidityText(i))}${i.id ? ` · código ${esc(i.id)}` : ''}. O nome${i.cref ? ' e o CREF' : ''} do perfil seguem a licença.</div>` : ''}
+    <div class="mp-sub" style="margin:0 0 12px;">Licença ${esc(licValidityText(i))}${i.id ? ` · código ${esc(i.id)}` : ''}. O nome${i.cref ? ' e o CREF' : ''} do perfil seguem a licença.</div>
+    ${(AppState.settings?.licenseKey || licBackupRead()) ? `<div class="mp-form-actions" style="justify-content:flex-start;margin:0 0 14px;"><button type="button" id="cfg-lic-copy" class="mp-btn mp-btn-ghost" style="border-color:var(--verde-suave);color:var(--verde-principal);">📋 Copiar minha chave</button></div>` : ''}` : ''}
     <div class="mp-field"><label>Inserir nova chave (renovação)</label>
       <textarea id="cfg-lic-key" rows="3" placeholder="MP1-..." style="font-family:monospace;font-size:12.5px;word-break:break-all;"></textarea>
     </div>
@@ -250,6 +251,17 @@ function licSettingsCardHtml() {
 }
 
 function licSettingsBind(container) {
+  container.querySelector('#cfg-lic-copy')?.addEventListener('click', async () => {
+    const key = AppState.settings?.licenseKey || licBackupRead();
+    if (!key) return;
+    try { await navigator.clipboard.writeText(key); Utils.toast('Chave copiada ✓ — guarde em lugar seguro.', 'success'); }
+    catch (e) {
+      // Sem acesso à área de transferência: mostra a chave selecionada para copiar à mão.
+      const ta = container.querySelector('#cfg-lic-key');
+      if (ta) { ta.value = key; ta.focus(); ta.select(); }
+      Utils.toast('Selecione a chave no campo abaixo e copie.', 'info');
+    }
+  });
   container.querySelector('#cfg-lic-save')?.addEventListener('click', async () => {
     const key = container.querySelector('#cfg-lic-key').value;
     if (!key.trim()) { Utils.toast('Cole a chave de licença.', 'error'); return; }
@@ -275,4 +287,4 @@ Object.assign(License, {
 window.License = License;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.19.9';
