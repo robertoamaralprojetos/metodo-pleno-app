@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.7';
+const APP_VERSION = 'v1.19.8';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -8,7 +8,7 @@ const APP_VERSION = 'v1.19.7';
 // Ao alterar um arquivo, suba o carimbo dele e a versão mínima correspondente nesta tabela.
 const MODULE_MIN = {
   'utils.js': 'v1.13.1',
-  'constants.js': 'v1.19.6',
+  'constants.js': 'v1.19.8',
   'db.js': 'v1.13.1',
   'evaluation-data.js': 'v1.19.3',
   'charts.js': 'v1.13.1',
@@ -35,13 +35,13 @@ const MODULE_MIN = {
   'admin.js': 'v1.19.7',
   'anamnesis.js': 'v1.17.0',
   'progression.js': 'v1.19.0',
-  'planning.js': 'v1.19.7',
-  'execution.js': 'v1.19.7',
+  'planning.js': 'v1.19.8',
+  'execution.js': 'v1.19.8',
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.19.7',
+  'app.js': 'v1.19.8',
 };
 
 function versionParts(v) {
@@ -242,22 +242,22 @@ function renderHeader() {
       <div style="margin-top:20px;position:relative;z-index:1;">
         <select id="mp-tab-select" class="mp-tab-select">
           <optgroup label="Visão geral (todos os alunos)">
-            <option value="administrativo" ${AppState.activeTab === 'administrativo' ? 'selected' : ''}>📊 Administrativo</option>
             <option value="configuracoes" ${AppState.activeTab === 'configuracoes' ? 'selected' : ''}>⚙️ Configurações</option>
+            <option value="administrativo" ${AppState.activeTab === 'administrativo' ? 'selected' : ''}>📊 Administrativo</option>
           </optgroup>
           <optgroup label="Aluno selecionado">
             <option value="cadastro" ${AppState.activeTab === 'cadastro' ? 'selected' : ''}>Cadastro do Aluno</option>
             <option value="pagamento" ${AppState.activeTab === 'pagamento' ? 'selected' : ''}>Controle de Pagamento</option>
             <option value="anamnese" ${AppState.activeTab === 'anamnese' ? 'selected' : ''}>Anamnese</option>
-            <option value="periodizacao" ${AppState.activeTab === 'periodizacao' ? 'selected' : ''}>Periodização</option>
+            <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
+            <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
+            <option value="postural" ${AppState.activeTab === 'postural' ? 'selected' : ''}>Avaliação Postural (${AppState.data.posturalEvaluations.length})</option>
             <option value="plano" ${AppState.activeTab === 'plano' ? 'selected' : ''}>Planejar Aula</option>
             <option value="registro" ${AppState.activeTab === 'registro' ? 'selected' : ''}>Registro de Treino (${countTrainingDays(AppState.data.sessions)})</option>
-            <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
+            <option value="periodizacao" ${AppState.activeTab === 'periodizacao' ? 'selected' : ''}>Periodização</option>
             <option value="carga" ${AppState.activeTab === 'carga' ? 'selected' : ''}>Carga e Deload</option>
+            <option value="dashboard" ${AppState.activeTab === 'dashboard' ? 'selected' : ''}>Dashboard de Evolução</option>
             <option value="relatorio" ${AppState.activeTab === 'relatorio' ? 'selected' : ''}>Relatório de Evolução</option>
-            <option value="avaliacao" ${AppState.activeTab === 'avaliacao' ? 'selected' : ''}>Avaliação Funcional (${AppState.data.evaluations.length})</option>
-            <option value="fisica" ${AppState.activeTab === 'fisica' ? 'selected' : ''}>Avaliação Física (${AppState.data.physicalEvaluations.length})</option>
-            <option value="postural" ${AppState.activeTab === 'postural' ? 'selected' : ''}>Avaliação Postural (${AppState.data.posturalEvaluations.length})</option>
           </optgroup>
         </select>
       </div>` : ''}
@@ -441,4 +441,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.7';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.8';

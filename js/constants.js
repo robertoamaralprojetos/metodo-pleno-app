@@ -478,7 +478,7 @@ function formatGenericSummary(item) {
   if (item.series && item.reps) parts.push(`${item.series}×${item.reps}`);
   else if (item.series) parts.push(`${item.series} séries`);
   if (item.load) parts.push(`${String(item.load).replace('.', ',')} ${formatUnitLabel(item.unit, item.unitDetail)}`.trim());
-  else if (item.unit === 'peso_corporal') parts.push('Peso Corporal');
+  else if (item.unit === 'peso_corporal' || item.unit === 'elastico' || (item.unit === 'outros' && item.unitDetail)) parts.push(formatUnitLabel(item.unit, item.unitDetail));
   if (item.restSeconds) parts.push(`desc: ${Utils.formatRestLabel(item.restSeconds)}`);
   return parts.join(' · ') || '—';
 }
@@ -563,4 +563,4 @@ window.bindAerobicFieldEvents = bindAerobicFieldEvents;
 window.readAerobicFieldValues = readAerobicFieldValues;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.6';
+(window.MP_BUILD = window.MP_BUILD || {})['constants.js'] = 'v1.19.8';

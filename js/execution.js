@@ -224,6 +224,15 @@ function execRenderHtml() {
   <div class="mp-card" style="margin-top:20px;">
     <h3>Histórico de sessões</h3>
     ${sorted.length ? `
+    <div class="mp-sub" style="margin-top:10px;">Imprima ou salve em PDF o histórico de um período: exercícios, séries, repetições, carga, escala de Borg e observações — um registro do trabalho feito com o aluno.</div>
+    <div class="mp-form-row mp-row2" style="align-items:end;">
+      <div class="mp-field"><label>De</label><input type="date" id="mp-hist-from" value="${histRange().from}"></div>
+      <div class="mp-field"><label>Até</label><input type="date" id="mp-hist-to" value="${histRange().to}"></div>
+    </div>
+    <div class="mp-form-actions" style="justify-content:flex-start;margin-bottom:14px;">
+      <button type="button" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;" id="mp-hist-print">🖨 Imprimir / Salvar em PDF</button>
+    </div>
+    <div id="mp-print-area" class="mp-print-only"></div>
     <div class="mp-table-scroll">
     <table class="mp-table">
       <thead><tr><th>Data</th><th>Exercício</th><th>Séries×Rep</th><th>Carga</th><th>Borg</th><th>Obs.</th><th></th></tr></thead>
@@ -233,7 +242,76 @@ function execRenderHtml() {
   </div>`;
 }
 
+// ---------- Histórico em PDF (v1.19.8) ----------
+function histRange() {
+  const to = AppState.histTo || Utils.todayISO();
+  const from = AppState.histFrom || Utils.addDaysISO(to, -30);
+  return { from, to };
+}
+
+function histSessionDetail(s) {
+  if (!isStrengthType(s.type)) return Utils.escapeHtml(formatNonStrengthSummary({ ...s, hrZone: null }));
+  return `${s.series}×${s.reps} · ${String(s.load ?? 0).replace('.', ',')} ${Utils.escapeHtml(formatUnitLabel(s.unit, s.unitDetail))}`;
+}
+
+function histPrintHtml(from, to) {
+  const student = currentStudent();
+  const esc = Utils.escapeHtml;
+  const list = AppState.data.sessions
+    .filter((s) => s.date >= from && s.date <= to)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0));
+  const dates = Array.from(new Set(list.map((s) => s.date)));
+  const borgs = [];
+  const body = dates.map((d) => {
+    const meta = getDailyMeta(d);
+    const overall = meta?.borgMode === 'overall' && meta?.overallBorg != null ? meta.overallBorg : null;
+    if (overall != null) borgs.push(overall);
+    const daySessions = list.filter((s) => s.date === d);
+    const rows = daySessions.map((s) => {
+      if (s.borg != null) borgs.push(s.borg);
+      const tag = trainingTypeShort(s.type, s.trainingTypeCustom) || 'musculação';
+      const hr = Cardio.hrSummary(s);
+      return `<tr>
+        <td>${esc(s.exerciseName)}<div style="color:#777;font-size:10.5px;">${esc(tag)}</div></td>
+        <td>${histSessionDetail(s)}${hr ? `<div style="color:#777;font-size:10.5px;">${esc(hr)}</div>` : ''}</td>
+        <td style="text-align:center;">${s.borg != null ? `${s.borg}<div style="color:#777;font-size:10px;">${esc(BORG_LABELS[s.borg])}</div>` : '—'}</td>
+        <td>${esc(s.notes || '')}</td>
+      </tr>`;
+    }).join('');
+    return `<tr class="mp-hist-day"><td colspan="4" style="background:#EEF1F5;font-weight:700;">${Utils.formatDateBR(d)} · ${daySessions.length} exercício(s)${overall != null ? ` · Borg geral do treino: ${overall} (${esc(BORG_LABELS[overall])})` : ''}</td></tr>${rows}`;
+  }).join('');
+  const borgAvg = borgs.length ? (borgs.reduce((a, b) => a + b, 0) / borgs.length).toFixed(1).replace('.', ',') : '—';
+  const now = new Date();
+  const stamp = `${Utils.formatDateBR(Utils.todayISO())} às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return `
+    ${Profile.docHeaderHtml('Histórico de Treinos', `Aluno(a): <strong>${esc(student?.name || '')}</strong> &nbsp;·&nbsp; Período: ${Utils.formatDateBR(from)} a ${Utils.formatDateBR(to)}`)}
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px;">
+      <div><strong>${dates.length}</strong> dia(s) de treino</div>
+      <div><strong>${list.length}</strong> exercício(s) registrados</div>
+      <div>Borg médio: <strong>${borgAvg}</strong> (escala CR-10, 0 a 10)</div>
+    </div>
+    ${list.length ? `
+    <table class="mp-print-table" style="font-size:11.5px;">
+      <thead><tr><th style="width:30%;">Exercício</th><th style="width:30%;">Séries × reps · carga / detalhes</th><th style="width:12%;">Borg</th><th>Observações</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>` : '<p>Nenhum treino registrado neste período.</p>'}
+    <p style="font-size:10.5px;color:#666;margin-top:12px;">Escala de Borg CR-10: 0 repouso · 1 muito, muito leve · 2 fácil · 3 moderado · 4 um pouco difícil · 5 difícil · 6 difícil+ · 7 muito difícil · 8 muito difícil+ · 9 muito, muito difícil · 10 esforço máximo. Registros feitos pelo profissional durante as aulas, no app Método Pleno. Documento gerado em ${stamp}.</p>
+    <div style="display:flex;gap:40px;margin-top:46px;font-size:12px;">
+      <div style="flex:1;border-top:1px solid #555;padding-top:4px;text-align:center;">${esc(Profile.signatureLine ? Profile.signatureLine() : 'Profissional')}</div>
+      <div style="flex:1;border-top:1px solid #555;padding-top:4px;text-align:center;">${esc(student?.name || 'Aluno(a)')}</div>
+    </div>`;
+}
+
 function execBindEvents(container) {
+  container.querySelector('#mp-hist-from')?.addEventListener('change', (e) => { AppState.histFrom = e.target.value || null; });
+  container.querySelector('#mp-hist-to')?.addEventListener('change', (e) => { AppState.histTo = e.target.value || null; });
+  container.querySelector('#mp-hist-print')?.addEventListener('click', () => {
+    const { from, to } = histRange();
+    if (from > to) { Utils.toast('A data inicial deve ser anterior à final.', 'error'); return; }
+    const area = container.querySelector('#mp-print-area');
+    area.innerHTML = histPrintHtml(from, to);
+    window.print();
+  });
   CheckinView.bindEvents(container, AppState.execDate);
   const execDateInput = container.querySelector('#mp-exec-date');
   if (execDateInput) execDateInput.addEventListener('change', () => { AppState.execDate = execDateInput.value; render(); });
@@ -346,8 +424,8 @@ function execBindEvents(container) {
           series: g.series,
           reps: g.reps,
           load: g.load,
-          unit: g.load || g.unit === 'peso_corporal' ? (g.unit || 'kg') : '',
-          unitDetail: g.load || g.unit === 'peso_corporal' ? (g.unitDetail || '') : '',
+          unit: g.load || ['peso_corporal', 'elastico', 'outros'].includes(g.unit) ? (g.unit || 'kg') : '',
+          unitDetail: g.load || ['peso_corporal', 'elastico', 'outros'].includes(g.unit) ? (g.unitDetail || '') : '',
           restSeconds: item.restSeconds || 0,
           ...Cardio.hrBlockRead(container, rx),
           borg: realBorg,
@@ -439,4 +517,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.7';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.8';
