@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.21.1';
+const APP_VERSION = 'v1.22.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -40,10 +40,11 @@ const MODULE_MIN = {
   'execution.js': 'v1.20.0',
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
-  'physical-evaluation.js': 'v1.21.1',
+  'physical-evaluation.js': 'v1.22.0',
+  'custom-tests.js': 'v1.22.0',
   'skinfold.js': 'v1.21.1',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.21.1',
+  'app.js': 'v1.22.0',
 };
 
 function versionParts(v) {
@@ -445,4 +446,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.21.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.22.0';

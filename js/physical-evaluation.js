@@ -102,6 +102,9 @@ function sitReachSummary(record) {
   return sr && typeof sr.best === 'number' ? sr : null;
 }
 
+// Métricas fixas + uma por teste personalizado que já tenha resultado.
+function peAllMetrics(list) { return [...PE_METRICS, ...CustomTests.metrics(list)]; }
+
 function metricPoints(list, metric) {
   return list
     .filter((r) => metric.getValue(r) != null)
@@ -127,6 +130,7 @@ function peRenderHtml() {
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
         <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}${rec.bodyFatPercent != null ? `<div style="font-size:11px;color:var(--texto-suave);">${rec.skinfold ? 'Dobras · ' + Utils.escapeHtml(Skinfold.protocol(rec.skinfold.protocolId)?.short || '') + ' · soma ' + rec.skinfold.sum + ' mm' : 'Bioimpedância'}</div>${(() => { const c = Skinfold.classifyBodyFat(rec.bodyFatPercent, rec.age, rec.sex); return c ? `<span class="mp-pill mp-pill-${c.level}" style="margin-top:3px;">${Utils.escapeHtml(c.label)}</span>` : ''; })()}` : ''}</td>
         <td>${sitReachSummary(rec) ? sitReachSummary(rec).best + ' cm' + (() => { const c = sitReachClassification(sitReachSummary(rec).best, rec.age, rec.sex, sitReachSummary(rec).footMark); return c ? ' · ' + Utils.escapeHtml(c.label) : ''; })() : '—'}</td>
+        <td style="max-width:240px;font-size:12.5px;">${(rec.customTests || []).length ? (rec.customTests || []).map((x) => `<div>${Utils.escapeHtml(x.name)}: <strong>${String(x.value).replace('.', ',')} ${Utils.escapeHtml(x.unit)}</strong>${x.level ? ` <span class="mp-pill mp-pill-${x.levelKind || 'leve'}">${Utils.escapeHtml(x.level)}</span>` : ''}</div>`).join('') : '—'}</td>
         <td style="max-width:230px;font-size:12.5px;">${workNeedLabels(rec.workNeeds).length ? Utils.escapeHtml(workNeedLabels(rec.workNeeds).join(', ')) : '—'}${rec.workNeedsNotes ? `<div style="color:var(--texto-suave);margin-top:2px;">${Utils.escapeHtml(rec.workNeedsNotes)}</div>` : ''}</td>
         <td>
           <button class="mp-btn mp-btn-ghost mp-btn-sm" data-print-eval="${rec.id}" type="button">🖨 Comparar c/ anterior</button>
@@ -135,7 +139,7 @@ function peRenderHtml() {
       </tr>`;
   }).join('');
 
-  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 1);
+  const availableMetrics = peAllMetrics(list).filter((m) => metricPoints(list, m).length >= 1);
   const reassessment = listDesc.length ? Utils.reassessmentStatus(listDesc[0].date) : null;
 
   return `
@@ -198,6 +202,8 @@ function peRenderHtml() {
         `).join('')}
       </div>
 
+      ${CustomTests.formHtml()}
+
       <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Trabalho necessário</h4>
       <div class="mp-sub" style="margin:0 0 8px;">Marque o que este aluno precisa priorizar no treino — isso alimenta as sugestões do app — e detalhe abaixo, se quiser.</div>
       <div class="mp-yesno" id="pe-work-needs">
@@ -252,11 +258,13 @@ function peRenderHtml() {
     <h3>Histórico de avaliações</h3>
     <div class="mp-table-scroll">
     <table class="mp-table">
-      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th>Sentar e alcançar</th><th>Trabalho necessário</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Classificação</th><th>% Gordura</th><th>Sentar e alcançar</th><th>Testes personalizados</th><th>Trabalho necessário</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
   </div>` : ''}
+
+  ${CustomTests.manageHtml()}
 
   <div id="mp-print-area" class="mp-print-only"></div>
   `;
@@ -271,6 +279,20 @@ function peBodyFatClassHtml(percent, age, sex) {
   return `<div style="margin-top:6px;"><span class="mp-pill mp-pill-${c.level}">${Utils.escapeHtml(c.label)}</span>
     <span style="font-size:12px;color:var(--texto-suave);margin-left:6px;">faixa saudável para a idade e o sexo: ${c.healthyRange}</span></div>
     <div style="font-size:11px;color:var(--texto-suave);margin-top:3px;">Referência: ${Utils.escapeHtml(c.ref)} Os "graus" I, II e III de obesidade são do IMC (mostrado acima), não do % de gordura.</div>`;
+}
+
+// Linhas dos testes personalizados (união dos testes do atual e do anterior).
+function peCustomPrintRows(current, previous) {
+  const ids = [];
+  [current, previous].forEach((r) => (r?.customTests || []).forEach((x) => { if (!ids.includes(x.testId)) ids.push(x.testId); }));
+  const find = (r, id) => (r?.customTests || []).find((x) => x.testId === id);
+  const rows = [];
+  ids.forEach((id) => {
+    const c = find(current, id); const p = find(previous, id); const ref = c || p;
+    rows.push([`${ref.name} (${ref.unit})`, c ? c.value : undefined, p ? p.value : undefined]);
+    if ((c && c.level) || (p && p.level)) rows.push([`${ref.name} — classificação`, c ? c.level : undefined, p ? p.level : undefined]);
+  });
+  return rows;
 }
 
 function peMethodText(rec) {
@@ -295,6 +317,7 @@ function pePrintHtml(student, current, previous) {
     ['Massa magra (kg)', current.skinfold?.leanMassKg, previous?.skinfold?.leanMassKg],
     ...CIRCUMFERENCE_FIELDS.map((f) => [f.label, current.circumferences?.[f.key], previous?.circumferences?.[f.key]]),
     ['Sentar e alcançar — melhor resultado (cm)', sitReachSummary(current)?.best, sitReachSummary(previous)?.best],
+    ...peCustomPrintRows(current, previous),
   ];
   const curSr = sitReachSummary(current);
   const curSrClass = curSr ? sitReachClassification(curSr.best, current.age, current.sex, curSr.footMark) : null;
@@ -334,7 +357,7 @@ function pePrintHtml(student, current, previous) {
 // Monta o relatório visual completo (todas as métricas com gráfico de evolução) dentro
 // de #mp-print-area e aciona a impressão/"Salvar como PDF" do navegador.
 function peBuildAndPrintReport(printArea, student, list) {
-  const availableMetrics = PE_METRICS.filter((m) => metricPoints(list, m).length >= 1);
+  const availableMetrics = peAllMetrics(list).filter((m) => metricPoints(list, m).length >= 1);
   if (!availableMetrics.length) {
     Utils.toast('Registre pelo menos 1 avaliação para gerar o relatório.', 'error');
     return;
@@ -475,6 +498,9 @@ function peBindEvents(container) {
   }
   bfInput?.addEventListener('input', bfRenderClass);
 
+  const ctRead = CustomTests.bindForm(container, age, student.sex);
+  CustomTests.bindManage(container);
+
   const workNeeds = new Set();
   container.querySelectorAll('[data-work]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -567,6 +593,9 @@ function peBindEvents(container) {
       };
     }
 
+    const customResults = ctRead();
+    if (customResults.length) record.customTests = customResults;
+
     AppState.data.physicalEvaluations.push(record);
     render();
     Utils.toast('Avaliação física salva ✓', 'success');
@@ -603,7 +632,7 @@ function peBindEvents(container) {
 
 function peAfterRender(container) {
   const list = [...AppState.data.physicalEvaluations].sort((a, b) => a.date.localeCompare(b.date));
-  PE_METRICS.forEach((m) => {
+  peAllMetrics(list).forEach((m) => {
     const target = container.querySelector(`#pe-chart-${m.key}`);
     if (!target) return; // métrica sem dados suficientes — nem renderizada no HTML
     const points = metricPoints(list, m);
@@ -615,4 +644,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.21.1';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.22.0';
