@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.23.1';
+const APP_VERSION = 'v1.24.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -41,11 +41,11 @@ const MODULE_MIN = {
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.23.0',
-  'assessment-report.js': 'v1.23.0',
+  'assessment-report.js': 'v1.24.0',
   'custom-tests.js': 'v1.22.0',
   'skinfold.js': 'v1.21.1',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.23.1',
+  'app.js': 'v1.24.0',
 };
 
 function versionParts(v) {
@@ -81,7 +81,7 @@ const HELP_TOPICS = [
   { title: 'Planejar Aula', text: 'Monte a sequência da aula: força (séries, reps, carga, descanso), aeróbico (corrida e caminhada ao ar livre por tempo ou distância, intervalados, esteira, bicicleta, elíptico) com zona de FC alvo, Treinamento Funcional, Ginástica Localizada, Pilates ou outro tipo. O card ❤️ mostra a FC máxima (Tanaka ou medida) e as zonas de treino (Karvonen, com a FC de repouso do Cadastro).' },
   { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e, nos treinos aeróbicos e demais tipos, a frequência cardíaca (antes, média, ao final e 1 e 2 minutos depois, com cronômetro de recuperação) e exercícios avulsos (ficam pendentes até você clicar em Concluir). No fim do treino, o cartão "Observações do treino de hoje" guarda um comentário livre do dia (ex.: deload aplicado, adaptações), que pode ir no relatório se você marcar. O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), condicionamento cardiovascular (recuperação da FC, FC antes do treino, ritmo, distância e tempo de aeróbico), aulas dadas, check-ins e consistência de treino.' },
-  { title: 'Relatório de Avaliação', text: 'Documento único com o resultado das avaliações: física (composição corporal, dobras, circunferências, testes personalizados), funcional e postural, com comparação com a anterior. Fotos posturais só entram se você marcar, em cada relatório, e só quando o aluno autorizou. Gera PDF pela impressão do navegador e resumo para WhatsApp (sem fotos).' },
+  { title: 'Relatório de Avaliação', text: 'Documento único com o resultado das avaliações: física (composição corporal, dobras, circunferências, testes personalizados), funcional e postural, com comparação com a anterior. Em "Tipo de relatório" escolha "Evolução do período" para ver todas as avaliações (ex.: as 4 do ano) lado a lado, com tabelas, variação e gráficos. Fotos posturais só entram se você marcar, em cada relatório, e só quando o aluno autorizou. Gera PDF pela impressão do navegador e resumo para WhatsApp (sem fotos).' },
   { title: 'Relatório de Evolução', text: 'Documento para o aluno e a família: frequência, evolução de carga, avaliação funcional, conquistas e mais, com PDF pela impressão do navegador e resumo para WhatsApp. Você escolhe o período e o que incluir; fotos nunca entram. Também exporta os dados de um único aluno.' },
   { title: 'Carga e Deload', text: 'Detecta platô por exercício e sinais de sobrecarga (esforço, check-ins e volume semanal) e sugere deload por volume ou espelhado, seguindo a hierarquia reps → séries → descanso → carga em ordem inversa. Os limites são editáveis em Configurações.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test (Rikli & Jones) completo — levantar e sentar, flexão de antebraço, marcha estacionária de 2 min, sentar e alcançar, alcançar atrás das costas e levantar-caminhar-sentar (2,44 m) — mais o apoio unipodal, com tabelas normativas por idade/sexo e Índice de Aptidão Funcional (0–100). Use o botão ± para resultados negativos.' },
@@ -454,4 +454,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.23.1';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.24.0';
