@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.19.9';
+const APP_VERSION = 'v1.20.0';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -22,12 +22,13 @@ const MODULE_MIN = {
   'postural.js': 'v1.13.1',
   'monitor-logic.js': 'v1.19.0',
   'monitor.js': 'v1.13.1',
-  'report-logic.js': 'v1.19.0',
-  'report.js': 'v1.19.3',
+  'report-logic.js': 'v1.20.0',
+  'report.js': 'v1.20.0',
   'pin-lock.js': 'v1.16.0',
   'settings.js': 'v1.19.1',
   'profile.js': 'v1.18.0',
-  'license.js': 'v1.19.9',
+  'license.js': 'v1.20.0',
+  'birthday.js': 'v1.20.0',
   'documents.js': 'v1.17.0',
   'registration.js': 'v1.19.0',
   'payment-logic.js': 'v1.19.7',
@@ -36,12 +37,12 @@ const MODULE_MIN = {
   'anamnesis.js': 'v1.17.0',
   'progression.js': 'v1.19.0',
   'planning.js': 'v1.19.8',
-  'execution.js': 'v1.19.8',
+  'execution.js': 'v1.20.0',
   'dashboard.js': 'v1.19.0',
   'evaluation.js': 'v1.19.3',
   'physical-evaluation.js': 'v1.16.0',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.19.9',
+  'app.js': 'v1.20.0',
 };
 
 function versionParts(v) {
@@ -222,6 +223,7 @@ function renderHeader() {
       ${updateReady ? `<div class="mp-warning-banner mp-warning-soft">🔄 Nova versão do app disponível. <button type="button" id="mp-update-btn" class="mp-btn mp-btn-outline mp-btn-sm" style="margin-left:10px;">Atualizar agora</button></div>` : ''}
       ${integrityBannerHtml()}
       ${License.bannerHtml()}
+      ${Birthday.bannerHtml()}
       ${BackupModule.needsBackupReminder(AppState.settings) ? `
       <div class="mp-warning-banner mp-warning-soft">
         💾 ${AppState.settings?.lastBackupAt ? `Faz mais de 7 dias que você não faz backup (último em ${Utils.formatDateBR(AppState.settings.lastBackupAt)}).` : 'Você ainda não fez nenhum backup dos dados.'}
@@ -343,6 +345,7 @@ function exportSessionsCsv() {
 }
 
 function bindHeaderEvents() {
+  Birthday.bindEvents();
   const selStudent = document.getElementById('mp-select-student');
   if (selStudent) selStudent.addEventListener('change', (e) => switchStudent(e.target.value));
 
@@ -441,4 +444,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.19.9';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.20.0';

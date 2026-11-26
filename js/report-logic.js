@@ -223,6 +223,7 @@ function computeReport(input) {
     wellbeing: reportWellbeing(checkins || [], from, to),
   };
   model.effort = reportEffort(sessions, dailyMeta, from, to, model.strength);
+  model.notes = (dailyMeta || []).filter((m) => m.note && m.date >= from && m.date <= to).map((m) => ({ date: m.date, note: m.note })).sort((a, b) => a.date.localeCompare(b.date));
   model.achievements = reportAchievements(model);
   return model;
 }
@@ -230,4 +231,4 @@ function computeReport(input) {
 window.ReportLogic = { REPORT_MILESTONES, reportPeriod, reportFrequency, reportStrength, reportFunctional, reportPhysical, reportWellbeing, reportEffort, reportAchievements, computeReport, rAddDays, rDiff };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.19.0';
+(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.20.0';

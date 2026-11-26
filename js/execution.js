@@ -100,6 +100,7 @@ function execRenderHtml() {
   const concluidos = planItens.filter((it) => it.completed);
 
   const dailyMeta = getDailyMeta(execDate);
+  const dayNoteValue = (AppState.execNoteDraft && AppState.execNoteDraft.date === execDate) ? AppState.execNoteDraft.text : (dailyMeta?.note || '');
   const borgMode = dailyMeta?.borgMode || 'perExercise';
   const isOverallMode = borgMode === 'overall';
 
@@ -202,6 +203,19 @@ function execRenderHtml() {
     ${dailyMeta?.overallBorg != null ? `<div class="mp-sub" style="margin:8px 0 0;">Já registrado: <strong>${dailyMeta.overallBorg} · ${Utils.escapeHtml(BORG_LABELS[dailyMeta.overallBorg])}</strong></div>` : ''}
   </div>` : ''}
 
+  <div class="mp-card" style="margin-top:20px;" id="mp-day-note-card">
+    <h3>Observações do treino de hoje</h3>
+    <div class="mp-sub" style="margin-top:6px;">Espaço livre para registrar o que foi feito nesta aula (${Utils.formatDateBR(execDate)}): adaptações, deload, queixas, como o aluno chegou. Fica no histórico do aluno e pode ir no relatório, se você marcar.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px;">
+      ${['Deload aplicado', 'Treino adaptado', 'Aluno relatou dor', 'Aluno cansado', 'Treino acima do planejado'].map((t) => `<button type="button" class="mp-btn mp-btn-ghost mp-btn-sm" data-note-chip="${Utils.escapeHtml(t)}">+ ${Utils.escapeHtml(t)}</button>`).join('')}
+    </div>
+    <div class="mp-field"><textarea id="mp-day-note" rows="4" maxlength="1500" placeholder="Ex: Deload — reduzi de 3 para 2 séries e diminuí a carga. Aluno não se alimentou bem hoje.">${Utils.escapeHtml(dayNoteValue)}</textarea></div>
+    <div class="mp-form-actions" style="margin-top:6px;">
+      <button type="button" id="mp-day-note-save" class="mp-btn mp-btn-gold" style="background:var(--verde-principal);color:#fff;">Salvar observação</button>
+    </div>
+    ${dailyMeta?.note ? `<div class="mp-sub" style="margin:8px 0 0;">Observação já salva neste dia ✓</div>` : ''}
+  </div>
+
   <div class="mp-card" style="margin-top:20px;">
     <h3>Registrar exercício avulso (fora do plano)</h3>
     <div class="mp-sub">Use para incluir no treino um exercício que não estava no plano. Ao clicar em "Salvar registro", ele entra na lista de exercícios pendentes lá em cima (com cronômetro de descanso) e só vai para o histórico quando você clicar em "Concluir exercício" — é aí que o Borg é registrado.</div>
@@ -278,7 +292,8 @@ function histPrintHtml(from, to) {
         <td>${esc(s.notes || '')}</td>
       </tr>`;
     }).join('');
-    return `<tr class="mp-hist-day"><td colspan="4" style="background:#EEF1F5;font-weight:700;">${Utils.formatDateBR(d)} · ${daySessions.length} exercício(s)${overall != null ? ` · Borg geral do treino: ${overall} (${esc(BORG_LABELS[overall])})` : ''}</td></tr>${rows}`;
+    const dayNote = meta?.note ? `<tr><td colspan="4" style="background:#FBF7EC;"><strong>Observação do treino:</strong> ${esc(meta.note).replace(/\n/g, '<br>')}</td></tr>` : '';
+    return `<tr class="mp-hist-day"><td colspan="4" style="background:#EEF1F5;font-weight:700;">${Utils.formatDateBR(d)} · ${daySessions.length} exercício(s)${overall != null ? ` · Borg geral do treino: ${overall} (${esc(BORG_LABELS[overall])})` : ''}</td></tr>${rows}${dayNote}`;
   }).join('');
   const borgAvg = borgs.length ? (borgs.reduce((a, b) => a + b, 0) / borgs.length).toFixed(1).replace('.', ',') : '—';
   const now = new Date();
@@ -324,6 +339,25 @@ function execBindEvents(container) {
       await AppShell.guardedPut(DB.STORES.dailySessionMeta, meta);
     });
   });
+
+  const noteArea = container.querySelector('#mp-day-note');
+  if (noteArea) {
+    noteArea.addEventListener('input', () => { AppState.execNoteDraft = { date: AppState.execDate, text: noteArea.value }; });
+    container.querySelectorAll('[data-note-chip]').forEach((chip) => chip.addEventListener('click', () => {
+      const t = chip.dataset.noteChip;
+      if (!noteArea.value.includes(t)) noteArea.value = (noteArea.value.trim() ? noteArea.value.trim() + '\n' : '') + t + ': ';
+      AppState.execNoteDraft = { date: AppState.execDate, text: noteArea.value };
+      noteArea.focus();
+    }));
+    container.querySelector('#mp-day-note-save')?.addEventListener('click', async () => {
+      const meta = ensureDailyMeta(AppState.execDate);
+      meta.note = noteArea.value.trim();
+      AppState.execNoteDraft = null;
+      render();
+      Utils.toast(meta.note ? 'Observação do treino salva ✓' : 'Observação removida', 'success');
+      await AppShell.guardedPut(DB.STORES.dailySessionMeta, meta);
+    });
+  }
 
   const overallSlider = container.querySelector('#mp-overall-borg-slider');
   if (overallSlider) {
@@ -517,4 +551,4 @@ function execBindEvents(container) {
 window.ExecutionView = { renderHtml: execRenderHtml, bindEvents: execBindEvents, BORG_LABELS, borgPillClass };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.19.8';
+(window.MP_BUILD = window.MP_BUILD || {})['execution.js'] = 'v1.20.0';

@@ -13,7 +13,7 @@
 const LICENSE_PUBLIC_KEY = { kty: 'EC', crv: 'P-256', x: 'Gvgw5mSMOQ5Lza-9XXZ4OCigr686d4dpIsD_cKHkKtQ', y: 'P27xOEduzR53bkyev321_4Yy4JeSd5bPXRA0VA3hlQs' };
 const LICENSE_PREFIX = 'MP1-';
 const LICENSE_GRACE_DAYS = 7;
-const LICENSE_WARN_DAYS = 15;
+const LICENSE_WARN_DAYS = 30;
 // Contato exibido na tela de licença (para comprar/renovar).
 const LICENSE_SELLER = { name: 'Professor Roberto Amaral', whatsapp: '(22) 98169-0277' };
 
@@ -216,7 +216,14 @@ function licScreenBind(root) {
 // Faixa de aviso no topo (vencendo / em tolerância).
 function licBannerHtml() {
   if (License.status === 'warning') {
-    return `<div class="mp-warning-banner mp-warning-soft">🔑 Sua licença vence em ${License.daysLeft === 0 ? 'hoje' : `${License.daysLeft} dia(s)`} (${Utils.formatDateBR(License.info.expires)}). Solicite a renovação e insira a nova chave em ⚙️ Configurações → Licença.</div>`;
+    const d = License.daysLeft;
+    const when = d === 0 ? 'vence <strong>hoje</strong>' : (d === 1 ? 'vence <strong>amanhã</strong> (falta 1 dia)' : `vence em <strong>${d} dias</strong>`);
+    const digits = String(LICENSE_SELLER.whatsapp || '').replace(/\D/g, '');
+    const wa = digits ? `https://wa.me/${digits.length <= 11 ? '55' + digits : digits}?text=${encodeURIComponent('Olá! Quero renovar a minha licença do App Método Pleno.' + (License.info.name ? ' Licenciado: ' + License.info.name + '.' : ''))}` : '';
+    const btn = wa ? ` <a href="${wa}" target="_blank" rel="noopener" class="mp-btn mp-btn-gold mp-btn-sm" style="margin-left:10px;text-decoration:none;">💬 Renovar pelo WhatsApp</a>` : '';
+    // Últimos 7 dias: faixa em tom de alerta, com a contagem regressiva. Antes disso, aviso discreto.
+    const urgent = d <= 7;
+    return `<div class="mp-warning-banner${urgent ? '' : ' mp-warning-soft'}" style="${urgent ? 'font-size:14px;' : ''}">🔑 ${urgent ? '⏳ ' : ''}Sua licença ${when} (${Utils.formatDateBR(License.info.expires)}). Para não perder o prazo, renove e insira a nova chave em ⚙️ Configurações → Licença.${btn}</div>`;
   }
   if (License.status === 'grace') {
     const left = LICENSE_GRACE_DAYS + License.daysLeft;
@@ -287,4 +294,4 @@ Object.assign(License, {
 window.License = License;
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.19.9';
+(window.MP_BUILD = window.MP_BUILD || {})['license.js'] = 'v1.20.0';

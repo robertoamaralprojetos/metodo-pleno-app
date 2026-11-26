@@ -15,6 +15,7 @@ const REP_SECTIONS = [
   { key: 'fisica', label: 'Avaliação física (peso, IMC, gordura, abdômen)', def: true },
   { key: 'postura', label: 'Foco postural do treino (sem fotos)', def: false },
   { key: 'bemestar', label: 'Bem-estar nas aulas (sono e disposição)', def: true },
+  { key: 'notas', label: 'Observações do professor nos treinos (você escolhe incluir)', def: false },
 ];
 const REP_RANGES = [
   ['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['180', 'Últimos 6 meses'],
@@ -273,6 +274,12 @@ function repHtml(model, opts) {
     parts.push(repSectionBox('Bem-estar nas aulas', `<div style="display:flex;gap:10px;flex-wrap:wrap;">${repTile(repFmt(w.avgSono) + '/5', 'qualidade do sono (média)')}${repTile(repFmt(w.avgDisp) + '/5', 'disposição (média)')}${repTile(w.greenPct + '%', `das aulas sem alerta (${w.count} check-ins)`)}</div>`));
   }
 
+  // Observações do professor (opcional)
+  if (sec.notas && model.notes && model.notes.length) {
+    const items = model.notes.map((n) => `<div style="margin:0 0 8px;"><strong>${Utils.formatDateBR(n.date)}</strong> — ${repMultiline(n.note)}</div>`).join('');
+    parts.push(repSectionBox('Observações do professor', items));
+  }
+
   if (opts.focus.trim()) {
     parts.push(`<section style="break-inside:avoid;margin:0 0 18px;background:#eef3ef;border-left:4px solid ${REP_GREEN};padding:10px 14px;border-radius:6px;">
       <div style="font-weight:700;color:${REP_GREEN};margin-bottom:4px;">Foco do próximo período</div>${repMultiline(opts.focus.trim())}</section>`);
@@ -311,6 +318,10 @@ function repWhatsText(model, opts) {
   }
   if (sec.esforco && model.effort && model.effort.ok) L.push(`😅 Esforço percebido médio: ${repFmt(model.effort.overallAvg)} (0 a 10)`);
   if (sec.fase && model.phase) L.push(`🎯 Fase atual: ${model.phase.name}`);
+  if (sec.notas && model.notes && model.notes.length) {
+    L.push('📝 Observações do professor:');
+    model.notes.slice(-5).forEach((n) => L.push(`   • ${Utils.formatDateBR(n.date).slice(0, 5)}: ${n.note.replace(/\s*\n\s*/g, ' ')}`));
+  }
   if (sec.conquistas) model.freq.crossedMilestones.forEach((m) => L.push(`🏅 Marca de ${m} treinos alcançada!`));
   if (opts.message.trim()) { L.push(''); L.push(opts.message.trim()); }
   if (opts.focus.trim()) { L.push(''); L.push(`Foco do próximo período: ${opts.focus.trim()}`); }
@@ -327,7 +338,7 @@ function repRenderHtml() {
   return `
   <div class="mp-card">
     <h3>Relatório de evolução para aluno e família</h3>
-    <div class="mp-sub">Escolha o período e o que incluir. A pré-visualização abaixo é o próprio documento. Por padrão, todas as informações disponíveis entram (exceto o foco postural), e fotos nunca entram no relatório. Seções sem dados no período são omitidas.</div>
+    <div class="mp-sub">Escolha o período e o que incluir. A pré-visualização abaixo é o próprio documento. Por padrão, todas as informações disponíveis entram (exceto o foco postural e as observações dos treinos, que podem ter detalhes pessoais), e fotos nunca entram no relatório. Seções sem dados no período são omitidas.</div>
     <div class="mp-form-row mp-row3">
       <div class="mp-field"><label>Período</label><select id="rep-range">${REP_RANGES.map(([v, l]) => `<option value="${v}" ${st.range === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="mp-field" id="rep-custom-from" style="${st.range === 'custom' ? '' : 'display:none;'}"><label>De</label><input type="date" id="rep-from" value="${st.from}"></div>
@@ -466,4 +477,4 @@ function repBindEvents(container) {
 window.ReportView = { renderHtml: repRenderHtml, bindEvents: repBindEvents, whatsText: repWhatsText, buildModel: repBuildModel, html: repHtml };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.19.3';
+(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.20.0';
