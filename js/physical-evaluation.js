@@ -17,6 +17,9 @@ const PE_METRICS = [
   { key: 'basalMetabolism', label: 'Metabolismo basal (kcal)', getValue: (r) => r.basalMetabolism },
   { key: 'bodyAge', label: 'Idade corporal (anos)', getValue: (r) => r.bodyAge },
   { key: 'visceralFat', label: 'Gordura visceral', getValue: (r) => r.visceralFat },
+  { key: 'skinfoldSum', label: 'Soma das dobras cutâneas (mm)', getValue: (r) => r.skinfold?.sum },
+  { key: 'fatMassKg', label: 'Massa gorda (kg)', getValue: (r) => r.skinfold?.fatMassKg },
+  { key: 'leanMassKg', label: 'Massa magra (kg)', getValue: (r) => r.skinfold?.leanMassKg },
   { key: 'sitReach', label: 'Sentar e alcançar (cm)', getValue: (r) => r.sitReach?.best },
   ...CIRCUMFERENCE_FIELDS.map((f) => ({ key: 'circ_' + f.key, label: f.label + ' (cm)', getValue: (r) => r.circumferences?.[f.key] })),
 ];
@@ -122,7 +125,7 @@ function peRenderHtml() {
         <td>${rec.weight ?? '—'} kg</td>
         <td>${imcResult ? imcResult.imc : '—'}</td>
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
-        <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}</td>
+        <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}${rec.bodyFatPercent != null ? `<div style="font-size:11px;color:var(--texto-suave);">${rec.skinfold ? 'Dobras · ' + Utils.escapeHtml(Skinfold.protocol(rec.skinfold.protocolId)?.short || '') + ' · soma ' + rec.skinfold.sum + ' mm' : 'Bioimpedância'}</div>` : ''}</td>
         <td>${sitReachSummary(rec) ? sitReachSummary(rec).best + ' cm' + (() => { const c = sitReachClassification(sitReachSummary(rec).best, rec.age, rec.sex, sitReachSummary(rec).footMark); return c ? ' · ' + Utils.escapeHtml(c.label) : ''; })() : '—'}</td>
         <td style="max-width:230px;font-size:12.5px;">${workNeedLabels(rec.workNeeds).length ? Utils.escapeHtml(workNeedLabels(rec.workNeeds).join(', ')) : '—'}${rec.workNeedsNotes ? `<div style="color:var(--texto-suave);margin-top:2px;">${Utils.escapeHtml(rec.workNeedsNotes)}</div>` : ''}</td>
         <td>
@@ -153,11 +156,38 @@ function peRenderHtml() {
       </div>
       <div id="pe-imc-preview"></div>
 
-      <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Bioimpedância</h4>
-      <div class="mp-form-row mp-row5">
-        ${BIOIMPEDANCE_FIELDS.map((f) => `
-          <div class="mp-field"><label>${Utils.escapeHtml(f.label)}</label><input type="number" step="0.1" id="pe-${f.key}"><small style="color:var(--texto-suave);">${f.unit}</small></div>
-        `).join('')}
+      <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Composição corporal (% de gordura)</h4>
+      <div class="mp-field" style="max-width:360px;">
+        <label>Como você mede o percentual de gordura?</label>
+        <select id="pe-method">
+          <option value="bio">Bioimpedância (ou valor digitado)</option>
+          <option value="skinfold">Dobras cutâneas (adipômetro)</option>
+        </select>
+      </div>
+      <div id="pe-panel-bio">
+        <div class="mp-form-row mp-row5">
+          ${BIOIMPEDANCE_FIELDS.map((f) => `
+            <div class="mp-field"><label>${Utils.escapeHtml(f.label)}</label><input type="number" step="0.1" id="pe-${f.key}"><small style="color:var(--texto-suave);">${f.unit}</small></div>
+          `).join('')}
+        </div>
+      </div>
+      <div id="pe-panel-sf" style="display:none;">
+        <div class="mp-sub" style="margin:8px 0;">O app sugere o protocolo conforme o sexo e a idade do aluno; você pode trocar. O resultado é uma <strong>estimativa</strong> (erro típico de 3 a 4 pontos percentuais): para acompanhar a evolução, use sempre o mesmo protocolo, o mesmo adipômetro e o mesmo avaliador.</div>
+        <div class="mp-form-row mp-row3">
+          <div class="mp-field"><label>Protocolo</label><select id="sf-protocol"></select></div>
+          <div class="mp-field" id="sf-conv-wrap"><label>Conversão densidade → % gordura</label>
+            <select id="sf-conv">${Object.entries(Skinfold.CONVERSIONS).map(([k, c]) => `<option value="${k}">${Utils.escapeHtml(c.label)}</option>`).join('')}</select></div>
+          <div class="mp-field" id="sf-mat-wrap" style="display:none;"><label>Maturação (meninos, soma até 35 mm)</label>
+            <select id="sf-mat"><option value="pre">Pré-púbere</option><option value="pub" selected>Púbere</option><option value="pos">Pós-púbere</option></select></div>
+        </div>
+        <div id="sf-ref" class="mp-sub" style="margin:0 0 8px;font-size:12px;"></div>
+        <div id="sf-sites"></div>
+        <div id="sf-preview"></div>
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:13px;">Como medir (técnica e localização dos pontos)</summary>
+          <ul style="margin:8px 0 0 18px;font-size:12.5px;line-height:1.5;">${Skinfold.TECHNIQUE.map((t) => `<li>${Utils.escapeHtml(t)}</li>`).join('')}</ul>
+          <div id="sf-how" style="margin-top:8px;font-size:12.5px;"></div>
+        </details>
       </div>
 
       <h4 style="font-family:'Fraunces',serif;font-size:14px;margin:16px 0 8px;color:var(--verde-principal);">Circunferências (cm)</h4>
@@ -204,6 +234,7 @@ function peRenderHtml() {
       <button type="button" id="pe-report-btn" class="mp-btn mp-btn-outline" style="color:var(--verde-principal);border-color:var(--verde-suave);">📄 Baixar relatório</button>
     </div>
     <div class="mp-sub" style="margin-top:10px;">${availableMetrics.length ? 'Um gráfico por métrica, com pelo menos 1 avaliação registrada.' : 'Registre pelo menos 1 avaliação para ver os gráficos de evolução.'}</div>
+    ${Skinfold.mixedMethods(list) ? '<div class="mp-sub" style="margin:6px 0 0;color:#8a5a00;">⚠ O % de gordura deste aluno foi medido por métodos ou protocolos diferentes. Valores de métodos diferentes não são diretamente comparáveis: confira o método na coluna "% Gordura" do histórico.</div>' : ''}
     ${availableMetrics.length ? `
     <div class="mp-metric-grid">
       ${availableMetrics.map((m) => `
@@ -230,6 +261,11 @@ function peRenderHtml() {
   `;
 }
 
+function peMethodText(rec) {
+  if (!rec || rec.bodyFatPercent == null) return undefined;
+  return rec.skinfold ? 'Dobras — ' + (Skinfold.protocol(rec.skinfold.protocolId)?.short || '') : 'Bioimpedância';
+}
+
 function pePrintHtml(student, current, previous) {
   const curImc = computeImcResult(current.weight, current.height, current.age);
   const prevImc = previous ? computeImcResult(previous.weight, previous.height, previous.age) : null;
@@ -240,6 +276,10 @@ function pePrintHtml(student, current, previous) {
     ['IMC', curImc?.imc, prevImc?.imc],
     ['Classificação IMC', curImc?.label, prevImc?.label],
     ...BIOIMPEDANCE_FIELDS.map((f) => [f.label, current[f.key], previous?.[f.key]]),
+    ['Método do % de gordura', peMethodText(current), previous ? peMethodText(previous) : undefined],
+    ['Soma das dobras cutâneas (mm)', current.skinfold?.sum, previous?.skinfold?.sum],
+    ['Massa gorda (kg)', current.skinfold?.fatMassKg, previous?.skinfold?.fatMassKg],
+    ['Massa magra (kg)', current.skinfold?.leanMassKg, previous?.skinfold?.leanMassKg],
     ...CIRCUMFERENCE_FIELDS.map((f) => [f.label, current.circumferences?.[f.key], previous?.circumferences?.[f.key]]),
     ['Sentar e alcançar — melhor resultado (cm)', sitReachSummary(current)?.best, sitReachSummary(previous)?.best],
   ];
@@ -270,6 +310,7 @@ function pePrintHtml(student, current, previous) {
       <thead><tr><th>Medida</th><th>${previous ? 'Anterior' : ''}</th><th>Atual</th><th>${previous ? 'Diferença' : ''}</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
+    ${current.skinfold ? `<div style="margin-top:8px;font-size:12px;color:#555;">Percentual de gordura estimado por dobras cutâneas (${Utils.escapeHtml(current.skinfold.protocolLabel)}). É uma estimativa, com erro típico de 3 a 4 pontos percentuais; para comparar avaliações, use sempre o mesmo protocolo, adipômetro e avaliador.${previous && ((previous.skinfold ? previous.skinfold.protocolId : 'bio') !== current.skinfold.protocolId) ? ' <strong>Atenção: a avaliação anterior usou outro método, então a diferença de % de gordura não é diretamente comparável.</strong>' : ''}</div>` : ''}
     ${srNote}
     ${workNeedLabels(current.workNeeds).length || current.workNeedsNotes ? `
     <div style="margin-top:14px;"><strong>Trabalho necessário:</strong> ${Utils.escapeHtml(workNeedLabels(current.workNeeds).join(', ') || '—')}${current.workNeedsNotes ? `<br><span style="color:#555;">${Utils.escapeHtml(current.workNeedsNotes)}</span>` : ''}</div>` : ''}
@@ -335,6 +376,82 @@ function peBindEvents(container) {
   container.querySelector('#pe-weight')?.addEventListener('input', recomputePreview);
   container.querySelector('#pe-height')?.addEventListener('input', recomputePreview);
   recomputePreview();
+
+  // ---------- Dobras cutâneas ----------
+  const sfSex = student.sex === 'F' ? 'F' : 'M';
+  const sfCache = {};
+  const methodSel = container.querySelector('#pe-method');
+  const sfProtocolSel = container.querySelector('#sf-protocol');
+  let sfState = { protocolId: Skinfold.suggest(age, sfSex) };
+
+  function sfReadInputs() {
+    container.querySelectorAll('#sf-sites input[data-site]').forEach((inp) => {
+      const k = inp.dataset.site; const i = Number(inp.dataset.n);
+      sfCache[k] = sfCache[k] || [];
+      sfCache[k][i] = inp.value === '' ? null : Number(inp.value);
+    });
+  }
+  function sfValues() {
+    sfReadInputs();
+    const out = {};
+    Object.keys(sfCache).forEach((k) => { out[k] = (sfCache[k] || []).filter((x) => x != null && Number.isFinite(x)); });
+    return out;
+  }
+  function sfCurrent() {
+    const weight = Number(container.querySelector('#pe-weight')?.value) || 0;
+    return Skinfold.compute({
+      protocolId: sfProtocolSel.value, sex: sfSex, age,
+      values: sfValues(), conversion: container.querySelector('#sf-conv').value,
+      maturation: container.querySelector('#sf-mat').value, weight,
+    });
+  }
+  function sfRenderPreview() {
+    const el = container.querySelector('#sf-preview');
+    if (!el) return;
+    const r = sfCurrent();
+    const warn = (r.warnings || []).map((w) => `<div style="font-size:12px;color:#8a5a00;margin-top:3px;">⚠ ${Utils.escapeHtml(w)}</div>`).join('');
+    if (!r.ok) {
+      const anyValue = Object.values(sfCache).some((a) => (a || []).some((x) => x != null));
+      el.innerHTML = anyValue || (r.errors || []).some((e) => e.includes('data de nascimento') || e.includes('17 anos') || e.includes('indisponível'))
+        ? `<div style="font-size:12.5px;color:var(--texto-suave);margin:8px 0;">${Utils.escapeHtml((r.errors || []).join(' '))}</div>${warn}` : '';
+      return;
+    }
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:18px;margin:8px 0 4px;flex-wrap:wrap;">
+        <div style="font-family:'Fraunces',serif;font-weight:600;font-size:26px;color:var(--verde-principal);">${String(r.percent).replace('.', ',')}%<div style="font-size:11px;font-family:inherit;font-weight:400;color:var(--texto-suave);">gordura estimada</div></div>
+        <div style="font-size:13px;">Soma das dobras: <strong>${String(r.sum).replace('.', ',')} mm</strong>${r.density ? `<br>Densidade: ${String(r.density).replace('.', ',')} g/cm³` : ''}${r.fatMassKg != null ? `<br>Massa gorda: <strong>${String(r.fatMassKg).replace('.', ',')} kg</strong> · massa magra: <strong>${String(r.leanMassKg).replace('.', ',')} kg</strong>` : ''}</div>
+      </div>${warn}`;
+  }
+  function sfRenderSites() {
+    sfReadInputs();
+    const p = Skinfold.protocol(sfProtocolSel.value);
+    if (!p) return;
+    const cfg = p.by[sfSex];
+    container.querySelector('#sf-ref').textContent = p.ref;
+    container.querySelector('#sf-conv-wrap').style.display = p.kind === 'density' ? '' : 'none';
+    container.querySelector('#sf-mat-wrap').style.display = (p.needsMaturation && sfSex === 'M') ? '' : 'none';
+    container.querySelector('#sf-sites').innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">${cfg.sites.map((s) => `
+      <div class="mp-field"><label>${Utils.escapeHtml(Skinfold.SITES[s].label)} (mm)</label>
+        <div style="display:flex;gap:6px;">${[0, 1, 2].map((n) => `<input type="number" min="0" step="0.5" inputmode="decimal" data-site="${s}" data-n="${n}" placeholder="${n === 2 ? '3ª (se divergir)' : (n + 1) + 'ª'}" value="${(sfCache[s] && sfCache[s][n] != null) ? sfCache[s][n] : ''}" style="min-width:0;">`).join('')}</div>
+      </div>`).join('')}</div>`;
+    container.querySelector('#sf-how').innerHTML = cfg.sites.map((s) => `<div style="margin-bottom:4px;"><strong>${Utils.escapeHtml(Skinfold.SITES[s].label)}:</strong> ${Utils.escapeHtml(Skinfold.SITES[s].how)}</div>`).join('');
+    container.querySelectorAll('#sf-sites input').forEach((inp) => inp.addEventListener('input', sfRenderPreview));
+    sfRenderPreview();
+  }
+  if (methodSel && sfProtocolSel) {
+    const suggested = Skinfold.suggest(age, sfSex);
+    sfProtocolSel.innerHTML = Skinfold.protocolsFor(sfSex).map((p) => `<option value="${p.id}" ${p.id === suggested ? 'selected' : ''}>${Utils.escapeHtml(p.label)}${p.id === suggested ? ' — sugerido' : ''}</option>`).join('');
+    methodSel.addEventListener('change', () => {
+      const sf = methodSel.value === 'skinfold';
+      container.querySelector('#pe-panel-sf').style.display = sf ? '' : 'none';
+      container.querySelector('#pe-panel-bio').style.display = sf ? 'none' : '';
+      if (sf) sfRenderSites();
+    });
+    sfProtocolSel.addEventListener('change', sfRenderSites);
+    container.querySelector('#sf-conv').addEventListener('change', sfRenderPreview);
+    container.querySelector('#sf-mat').addEventListener('change', sfRenderPreview);
+    container.querySelector('#pe-weight')?.addEventListener('input', () => { if (methodSel.value === 'skinfold') sfRenderPreview(); });
+  }
 
   const workNeeds = new Set();
   container.querySelectorAll('[data-work]').forEach((btn) => {
@@ -402,6 +519,21 @@ function peBindEvents(container) {
       const v = container.querySelector(`#pe-${f.key}`).value;
       record[f.key] = v === '' ? null : Number(v);
     });
+    record.bodyFatMethod = record.bodyFatPercent != null ? 'bio' : null;
+    if (methodSel && methodSel.value === 'skinfold') {
+      const res = sfCurrent();
+      if (!res.ok) { Utils.toast('Dobras cutâneas: ' + (res.errors[0] || 'confira as medidas.'), 'error'); return; }
+      BIOIMPEDANCE_FIELDS.forEach((f) => { record[f.key] = null; });
+      record.bodyFatPercent = res.percent;
+      record.leanMassPercent = Math.round((100 - res.percent) * 10) / 10;
+      record.bodyFatMethod = 'skinfold';
+      record.skinfold = {
+        protocolId: sfProtocolSel.value, protocolLabel: Skinfold.protocol(sfProtocolSel.value).label,
+        sites: res.means, readings: sfValues(), sum: res.sum, density: res.density ?? null,
+        conversion: res.conversion ?? null, maturation: res.maturation ?? null,
+        fatMassKg: res.fatMassKg ?? null, leanMassKg: res.leanMassKg ?? null,
+      };
+    }
 
     const srAttempts = readSitReachAttempts();
     if (srAttempts.length) {
@@ -461,4 +593,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.16.0';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.21.0';
