@@ -509,7 +509,8 @@ function posBindEvents(container) {
   });
 }
 
+window.POS_VIEWS_LIST = POS_VIEWS;
 window.PosturalView = { renderHtml: posRenderHtml, bindEvents: posBindEvents, compressPhoto, openPhotoAnalysis };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['postural.js'] = 'v1.13.1';
+(window.MP_BUILD = window.MP_BUILD || {})['postural.js'] = 'v1.23.0';

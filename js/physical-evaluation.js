@@ -300,7 +300,8 @@ function peMethodText(rec) {
   return rec.skinfold ? 'Dobras — ' + (Skinfold.protocol(rec.skinfold.protocolId)?.short || '') : 'Bioimpedância';
 }
 
-function pePrintHtml(student, current, previous) {
+// Linhas [rótulo, atual, anterior] da avaliação física (usadas na impressão e no Relatório de Avaliação).
+function peRowsData(current, previous) {
   const curImc = computeImcResult(current.weight, current.height, current.age);
   const prevImc = previous ? computeImcResult(previous.weight, previous.height, previous.age) : null;
 
@@ -326,6 +327,12 @@ function pePrintHtml(student, current, previous) {
     const prevSrClass = prevSr ? sitReachClassification(prevSr.best, previous.age, previous.sex, prevSr.footMark) : null;
     rowsData.push(['Sentar e alcançar — classificação', curSrClass.label, prevSrClass?.label]);
   }
+  return rowsData;
+}
+
+function pePrintHtml(student, current, previous) {
+  const rowsData = peRowsData(current, previous);
+  const curSr = sitReachSummary(current);
   const srNoteMark = curSr?.footMark ?? sitReachSummary(previous)?.footMark;
   const srNote = (curSr || sitReachSummary(previous))
     ? `<div style="margin-top:8px;font-size:12px;color:#555;">Sentar e alcançar (banco de Wells): melhor de até 3 tentativas${srNoteMark != null ? `; marca dos pés no banco: ${srNoteMark} cm` : ''}. Compare avaliações feitas com o mesmo banco e a mesma marca.</div>`
@@ -644,4 +651,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.22.0';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.23.0';
