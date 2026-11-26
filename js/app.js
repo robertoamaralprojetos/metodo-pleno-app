@@ -1,6 +1,6 @@
 // Shell do app, cabeçalho, abas e orquestração de render — Método Pleno
 
-const APP_VERSION = 'v1.23.0';
+const APP_VERSION = 'v1.23.1';
 
 // Verificação de integridade: cada arquivo do app grava seu carimbo de versão em window.MP_BUILD.
 // Se algum arquivo estiver ausente, sem carimbo (versão antiga) ou abaixo da versão mínima daqui,
@@ -25,7 +25,7 @@ const MODULE_MIN = {
   'report-logic.js': 'v1.21.1',
   'report.js': 'v1.21.1',
   'pin-lock.js': 'v1.16.0',
-  'settings.js': 'v1.19.1',
+  'settings.js': 'v1.23.1',
   'profile.js': 'v1.18.0',
   'license.js': 'v1.20.0',
   'birthday.js': 'v1.20.1',
@@ -45,7 +45,7 @@ const MODULE_MIN = {
   'custom-tests.js': 'v1.22.0',
   'skinfold.js': 'v1.21.1',
   'backup.js': 'v1.19.4',
-  'app.js': 'v1.23.0',
+  'app.js': 'v1.23.1',
 };
 
 function versionParts(v) {
@@ -79,14 +79,17 @@ const HELP_TOPICS = [
   { title: 'Anamnese', text: 'Triagem PAR-Q (7 perguntas, validade de 12 meses, com alerta no Administrativo), triagem de saúde do aluno (perguntas sim/não) e perfil de entrada no treino (sedentário, destreinado ou já ativo), atualizável a qualquer momento.' },
   { title: 'Periodização', text: 'Sequência de fases sugerida pelo Roteiro Fisiológico de Progressão (perfil de entrada, objetivo, faixa etária e gênero). Você aceita, ajusta a fase inicial ou recusa; o estágio de treino acompanha a fase.' },
   { title: 'Planejar Aula', text: 'Monte a sequência da aula: força (séries, reps, carga, descanso), aeróbico (corrida e caminhada ao ar livre por tempo ou distância, intervalados, esteira, bicicleta, elíptico) com zona de FC alvo, Treinamento Funcional, Ginástica Localizada, Pilates ou outro tipo. O card ❤️ mostra a FC máxima (Tanaka ou medida) e as zonas de treino (Karvonen, com a FC de repouso do Cadastro).' },
-  { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e, nos treinos aeróbicos e demais tipos, a frequência cardíaca (antes, média, ao final e 1 e 2 minutos depois, com cronômetro de recuperação) e exercícios avulsos (ficam pendentes até você clicar em Concluir). O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
+  { title: 'Registro de Treino', text: 'Faça o check-in pré-aula (sono, dor e disposição), execute o plano do dia, ajuste valores reais, registre o esforço percebido (Borg CR-10) e, nos treinos aeróbicos e demais tipos, a frequência cardíaca (antes, média, ao final e 1 e 2 minutos depois, com cronômetro de recuperação) e exercícios avulsos (ficam pendentes até você clicar em Concluir). No fim do treino, o cartão "Observações do treino de hoje" guarda um comentário livre do dia (ex.: deload aplicado, adaptações), que pode ir no relatório se você marcar. O número ao lado do nome da aba é a quantidade de treinos (dias treinados).' },
   { title: 'Dashboard de Evolução', text: 'Gráficos de evolução de carga, esforço percebido (por treino e por exercício), condicionamento cardiovascular (recuperação da FC, FC antes do treino, ritmo, distância e tempo de aeróbico), aulas dadas, check-ins e consistência de treino.' },
   { title: 'Relatório de Avaliação', text: 'Documento único com o resultado das avaliações: física (composição corporal, dobras, circunferências, testes personalizados), funcional e postural, com comparação com a anterior. Fotos posturais só entram se você marcar, em cada relatório, e só quando o aluno autorizou. Gera PDF pela impressão do navegador e resumo para WhatsApp (sem fotos).' },
   { title: 'Relatório de Evolução', text: 'Documento para o aluno e a família: frequência, evolução de carga, avaliação funcional, conquistas e mais, com PDF pela impressão do navegador e resumo para WhatsApp. Você escolhe o período e o que incluir; fotos nunca entram. Também exporta os dados de um único aluno.' },
   { title: 'Carga e Deload', text: 'Detecta platô por exercício e sinais de sobrecarga (esforço, check-ins e volume semanal) e sugere deload por volume ou espelhado, seguindo a hierarquia reps → séries → descanso → carga em ordem inversa. Os limites são editáveis em Configurações.' },
   { title: 'Avaliação Funcional', text: 'Senior Fitness Test (Rikli & Jones) completo — levantar e sentar, flexão de antebraço, marcha estacionária de 2 min, sentar e alcançar, alcançar atrás das costas e levantar-caminhar-sentar (2,44 m) — mais o apoio unipodal, com tabelas normativas por idade/sexo e Índice de Aptidão Funcional (0–100). Use o botão ± para resultados negativos.' },
   { title: 'Avaliação Postural', text: 'Checklist de achados posturais por segmento, fotos opcionais (com autorização do aluno) com grade e medida de ângulos, histórico com comparação e sugestão de ênfase de treino cruzada com a Avaliação Física, o objetivo e as Fichas.' },
-  { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal (bioimpedância), circunferências e o trabalho necessário para o aluno, com histórico e gráficos.' },
+  { title: 'Avaliação Física', text: 'Peso, altura, IMC, composição corporal, circunferências, flexibilidade e o trabalho necessário para o aluno, com histórico e gráficos. O % de gordura pode vir da bioimpedância (ou valor digitado) ou das dobras cutâneas: o app sugere o protocolo pela idade e pelo sexo (Jackson & Pollock, Durnin & Womersley, Guedes, Slaughter) e mostra a classificação do % de gordura (Gallagher, adultos de 20 a 79 anos). Use sempre o mesmo protocolo, adipômetro e avaliador. Os "graus" de obesidade I, II e III são do IMC, não do % de gordura.' },
+  { title: 'Testes personalizados', text: 'No fim da aba Avaliação Física, em "Meus testes personalizados", crie os seus testes (abdominal, equilíbrio, força…) com unidade, sentido (maior ou menor é melhor), tentativas e, se quiser, uma tabela de referência por sexo e idade. Eles aparecem em toda nova avaliação, no histórico, nos gráficos e nos relatórios. Apagar um teste não altera avaliações já feitas.' },
+  { title: '🎂 Aniversariantes e avisos', text: 'No topo do app aparece um banner quando algum aluno faz aniversário no dia (com a idade e um botão para enviar parabéns pelo WhatsApp). Também aparecem avisos de backup e de vencimento da licença: 30 dias antes, de forma discreta, e nos últimos 7 dias com contagem diária.' },
+  { title: '🔄 Atualizar o app', text: 'O app se atualiza sozinho ao ser aberto com internet; quando houver versão nova, aparece o aviso "Nova versão disponível" (clique em Atualizar agora). A versão instalada aparece no rodapé. Se continuar antiga, vá em Configurações → Atualização do app → Forçar atualização: isso baixa o app de novo sem apagar alunos, histórico, fotos nem a licença. Não é preciso apagar dados do navegador nem digitar a chave de novo.' },
 ];
 
 function openHelpModal() {
@@ -451,4 +454,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.23.0';
+(window.MP_BUILD = window.MP_BUILD || {})['app.js'] = 'v1.23.1';

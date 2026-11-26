@@ -192,6 +192,47 @@ function settingsBindPinEvents(container) {
   });
 }
 
+// ---------- Atualização do app (v1.23.1) ----------
+// Apaga SÓ os arquivos guardados do app (cache) e o service worker, e recarrega. Os dados
+// (alunos, histórico, fotos) ficam no IndexedDB e a licença no IndexedDB + localStorage:
+// nada disso é tocado, então não é preciso digitar a chave de novo. Exige internet, porque o
+// app é baixado de novo — por isso testa a conexão ANTES de apagar qualquer coisa.
+function settingsUpdateCardHtml() {
+  return `
+  <div class="mp-card" style="margin-top:20px;" id="cfg-update-card">
+    <h3>Atualização do app</h3>
+    <div class="mp-sub" style="margin-top:10px;">Versão instalada neste aparelho: <strong>${Utils.escapeHtml(typeof APP_VERSION !== 'undefined' ? APP_VERSION : '—')}</strong>. O app se atualiza sozinho quando você o abre com internet (aparece o aviso "Nova versão disponível"). Se a versão acima continuar antiga, use o botão abaixo: ele baixa o app de novo <strong>sem apagar seus alunos, histórico, fotos nem a licença</strong>.</div>
+    <div class="mp-form-actions" style="justify-content:flex-start;margin-top:10px;">
+      <button type="button" id="cfg-force-update" class="mp-btn mp-btn-ghost">🔄 Forçar atualização do app</button>
+    </div>
+    <div id="cfg-update-msg" class="mp-sub" style="margin:8px 0 0;"></div>
+  </div>`;
+}
+
+async function settingsForceUpdate(container) {
+  const msg = container.querySelector('#cfg-update-msg');
+  const say = (t) => { if (msg) msg.textContent = t; };
+  if (!navigator.onLine) { say('Sem internet. Conecte-se e tente de novo: o app precisa ser baixado novamente.'); return; }
+  try {
+    const probe = await fetch('index.html?t=' + Date.now(), { cache: 'no-store' });
+    if (!probe.ok) throw new Error('HTTP ' + probe.status);
+  } catch (e) { say('Não foi possível acessar o servidor do app agora. Nada foi apagado. Tente novamente em alguns minutos.'); return; }
+  const ok = await Utils.confirmDialog('Baixar o app de novo agora? Seus alunos, histórico e a licença não serão apagados. A página vai recarregar.');
+  if (!ok) return;
+  say('Atualizando…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (e) { say('A atualização encontrou um problema, mas seus dados estão intactos. Feche e abra o app com internet.'); return; }
+  location.reload();
+}
+
 function settingsRenderHtml() {
   const s = AppState.settings;
   return `
@@ -238,6 +279,8 @@ function settingsRenderHtml() {
   ${settingsPinSectionHtml(s)}
 
   ${StorageGuard.cardHtml(s)}
+
+  ${settingsUpdateCardHtml()}
   `;
 }
 
@@ -276,6 +319,7 @@ function settingsBindEvents(container) {
   });
 
   License.settingsBind(container);
+  container.querySelector('#cfg-force-update')?.addEventListener('click', () => settingsForceUpdate(container));
   StudentDocs.settingsBind(container);
   MonitorView.settingsBind(container);
   settingsBindPinEvents(container);
@@ -289,4 +333,4 @@ window.generatePolicyParagraphs = generatePolicyParagraphs;
 window.SettingsView = { renderHtml: settingsRenderHtml, bindEvents: settingsBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.19.1';
+(window.MP_BUILD = window.MP_BUILD || {})['settings.js'] = 'v1.23.1';
