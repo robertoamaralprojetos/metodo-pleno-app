@@ -24,14 +24,17 @@ function bdTodayList(students, todayISO) {
 
 function bdFirstName(s) { return ((s && s.name) || '').trim().split(/\s+/)[0] || 'Aluno(a)'; }
 
-function bdMessage(student, age) {
+// Alguns navegadores/WhatsApp Web corrompem emojis "grandes" (🎂🎉💪…) quando vão dentro do link
+// wa.me — viram "�". Para o LINK uso só símbolos simples (✨ ❤), que passam sempre. A mensagem
+// copiada (botão "Copiar mensagem") mantém os emojis completos.
+function bdMessage(student, age, safe) {
   const who = (window.Profile && Profile.signatureLine && Profile.signatureLine()) || '';
   return [
-    `🎂🎉 Parabéns, ${bdFirstName(student)}!`,
+    `${safe ? '✨' : '🎂🎉'} Parabéns, ${bdFirstName(student)}!`,
     '',
-    `Hoje é o seu dia, e comemorar ${age} anos com tanta disposição é motivo de muita alegria! 🥳`,
+    `Hoje é o seu dia, e comemorar ${age} anos com tanta disposição é motivo de muita alegria!${safe ? ' ✨' : ' 🥳'}`,
     'Que este novo ciclo traga saúde, energia, paz e muitos momentos bons ao lado de quem você ama.',
-    'Tenho muito orgulho da sua dedicação e é uma honra acompanhar a sua evolução. 💪💛',
+    'Tenho muito orgulho da sua dedicação e é uma honra acompanhar a sua evolução.' + (safe ? ' ❤' : ' 💪💛'),
     '',
     'Um grande abraço e feliz aniversário!',
     who ? `— ${who}` : '',
@@ -41,7 +44,7 @@ function bdMessage(student, age) {
 function bdWaUrl(student, age) {
   const digits = String(student.phone || '').replace(/\D/g, '');
   const phone = digits.length >= 10 ? (digits.length <= 11 ? '55' + digits : digits) : '';
-  return `https://wa.me/${phone}?text=${encodeURIComponent(bdMessage(student, age))}`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(bdMessage(student, age, true))}`;
 }
 
 function bdBannerHtml() {
@@ -79,4 +82,4 @@ function bdBindEvents() {
 window.Birthday = { todayList: bdTodayList, message: bdMessage, waUrl: bdWaUrl, bannerHtml: bdBannerHtml, bindEvents: bdBindEvents };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['birthday.js'] = 'v1.20.0';
+(window.MP_BUILD = window.MP_BUILD || {})['birthday.js'] = 'v1.20.1';
