@@ -125,7 +125,7 @@ function peRenderHtml() {
         <td>${rec.weight ?? '—'} kg</td>
         <td>${imcResult ? imcResult.imc : '—'}</td>
         <td>${imcResult ? Utils.escapeHtml(imcResult.label) : '—'}</td>
-        <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}${rec.bodyFatPercent != null ? `<div style="font-size:11px;color:var(--texto-suave);">${rec.skinfold ? 'Dobras · ' + Utils.escapeHtml(Skinfold.protocol(rec.skinfold.protocolId)?.short || '') + ' · soma ' + rec.skinfold.sum + ' mm' : 'Bioimpedância'}</div>` : ''}</td>
+        <td>${rec.bodyFatPercent ?? '—'}${rec.bodyFatPercent != null ? '%' : ''}${rec.bodyFatPercent != null ? `<div style="font-size:11px;color:var(--texto-suave);">${rec.skinfold ? 'Dobras · ' + Utils.escapeHtml(Skinfold.protocol(rec.skinfold.protocolId)?.short || '') + ' · soma ' + rec.skinfold.sum + ' mm' : 'Bioimpedância'}</div>${(() => { const c = Skinfold.classifyBodyFat(rec.bodyFatPercent, rec.age, rec.sex); return c ? `<span class="mp-pill mp-pill-${c.level}" style="margin-top:3px;">${Utils.escapeHtml(c.label)}</span>` : ''; })()}` : ''}</td>
         <td>${sitReachSummary(rec) ? sitReachSummary(rec).best + ' cm' + (() => { const c = sitReachClassification(sitReachSummary(rec).best, rec.age, rec.sex, sitReachSummary(rec).footMark); return c ? ' · ' + Utils.escapeHtml(c.label) : ''; })() : '—'}</td>
         <td style="max-width:230px;font-size:12.5px;">${workNeedLabels(rec.workNeeds).length ? Utils.escapeHtml(workNeedLabels(rec.workNeeds).join(', ')) : '—'}${rec.workNeedsNotes ? `<div style="color:var(--texto-suave);margin-top:2px;">${Utils.escapeHtml(rec.workNeedsNotes)}</div>` : ''}</td>
         <td>
@@ -170,6 +170,7 @@ function peRenderHtml() {
             <div class="mp-field"><label>${Utils.escapeHtml(f.label)}</label><input type="number" step="0.1" id="pe-${f.key}"><small style="color:var(--texto-suave);">${f.unit}</small></div>
           `).join('')}
         </div>
+        <div id="pe-bf-class"></div>
       </div>
       <div id="pe-panel-sf" style="display:none;">
         <div class="mp-sub" style="margin:8px 0;">O app sugere o protocolo conforme o sexo e a idade do aluno; você pode trocar. O resultado é uma <strong>estimativa</strong> (erro típico de 3 a 4 pontos percentuais): para acompanhar a evolução, use sempre o mesmo protocolo, o mesmo adipômetro e o mesmo avaliador.</div>
@@ -261,6 +262,17 @@ function peRenderHtml() {
   `;
 }
 
+// Faixa de classificação do % de gordura (pílula + faixa saudável + nota de referência).
+function peBodyFatClassHtml(percent, age, sex) {
+  const c = Skinfold.classifyBodyFat(percent, age, sex);
+  if (!c) {
+    return percent != null ? '<div style="font-size:11.5px;color:var(--texto-suave);margin-top:4px;">Sem classificação: a tabela de referência vale para adultos de 20 a 79 anos.</div>' : '';
+  }
+  return `<div style="margin-top:6px;"><span class="mp-pill mp-pill-${c.level}">${Utils.escapeHtml(c.label)}</span>
+    <span style="font-size:12px;color:var(--texto-suave);margin-left:6px;">faixa saudável para a idade e o sexo: ${c.healthyRange}</span></div>
+    <div style="font-size:11px;color:var(--texto-suave);margin-top:3px;">Referência: ${Utils.escapeHtml(c.ref)} Os "graus" I, II e III de obesidade são do IMC (mostrado acima), não do % de gordura.</div>`;
+}
+
 function peMethodText(rec) {
   if (!rec || rec.bodyFatPercent == null) return undefined;
   return rec.skinfold ? 'Dobras — ' + (Skinfold.protocol(rec.skinfold.protocolId)?.short || '') : 'Bioimpedância';
@@ -277,6 +289,7 @@ function pePrintHtml(student, current, previous) {
     ['Classificação IMC', curImc?.label, prevImc?.label],
     ...BIOIMPEDANCE_FIELDS.map((f) => [f.label, current[f.key], previous?.[f.key]]),
     ['Método do % de gordura', peMethodText(current), previous ? peMethodText(previous) : undefined],
+    ['Classificação do % de gordura', Skinfold.classifyBodyFat(current.bodyFatPercent, current.age, current.sex)?.label, previous ? Skinfold.classifyBodyFat(previous.bodyFatPercent, previous.age, previous.sex)?.label : undefined],
     ['Soma das dobras cutâneas (mm)', current.skinfold?.sum, previous?.skinfold?.sum],
     ['Massa gorda (kg)', current.skinfold?.fatMassKg, previous?.skinfold?.fatMassKg],
     ['Massa magra (kg)', current.skinfold?.leanMassKg, previous?.skinfold?.leanMassKg],
@@ -310,6 +323,7 @@ function pePrintHtml(student, current, previous) {
       <thead><tr><th>Medida</th><th>${previous ? 'Anterior' : ''}</th><th>Atual</th><th>${previous ? 'Diferença' : ''}</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
+    ${Skinfold.classifyBodyFat(current.bodyFatPercent, current.age, current.sex) ? `<div style="margin-top:8px;font-size:12px;color:#555;">Classificação do % de gordura: ${Utils.escapeHtml(Skinfold.BF_REF)} Os graus I, II e III de obesidade pertencem ao IMC.</div>` : ''}
     ${current.skinfold ? `<div style="margin-top:8px;font-size:12px;color:#555;">Percentual de gordura estimado por dobras cutâneas (${Utils.escapeHtml(current.skinfold.protocolLabel)}). É uma estimativa, com erro típico de 3 a 4 pontos percentuais; para comparar avaliações, use sempre o mesmo protocolo, adipômetro e avaliador.${previous && ((previous.skinfold ? previous.skinfold.protocolId : 'bio') !== current.skinfold.protocolId) ? ' <strong>Atenção: a avaliação anterior usou outro método, então a diferença de % de gordura não é diretamente comparável.</strong>' : ''}</div>` : ''}
     ${srNote}
     ${workNeedLabels(current.workNeeds).length || current.workNeedsNotes ? `
@@ -420,7 +434,7 @@ function peBindEvents(container) {
       <div style="display:flex;align-items:center;gap:18px;margin:8px 0 4px;flex-wrap:wrap;">
         <div style="font-family:'Fraunces',serif;font-weight:600;font-size:26px;color:var(--verde-principal);">${String(r.percent).replace('.', ',')}%<div style="font-size:11px;font-family:inherit;font-weight:400;color:var(--texto-suave);">gordura estimada</div></div>
         <div style="font-size:13px;">Soma das dobras: <strong>${String(r.sum).replace('.', ',')} mm</strong>${r.density ? `<br>Densidade: ${String(r.density).replace('.', ',')} g/cm³` : ''}${r.fatMassKg != null ? `<br>Massa gorda: <strong>${String(r.fatMassKg).replace('.', ',')} kg</strong> · massa magra: <strong>${String(r.leanMassKg).replace('.', ',')} kg</strong>` : ''}</div>
-      </div>${warn}`;
+      </div>${peBodyFatClassHtml(r.percent, age, sfSex)}${warn}`;
   }
   function sfRenderSites() {
     sfReadInputs();
@@ -452,6 +466,14 @@ function peBindEvents(container) {
     container.querySelector('#sf-mat').addEventListener('change', sfRenderPreview);
     container.querySelector('#pe-weight')?.addEventListener('input', () => { if (methodSel.value === 'skinfold') sfRenderPreview(); });
   }
+
+  const bfInput = container.querySelector('#pe-bodyFatPercent');
+  const bfClassEl = container.querySelector('#pe-bf-class');
+  function bfRenderClass() {
+    if (!bfInput || !bfClassEl) return;
+    bfClassEl.innerHTML = bfInput.value === '' ? '' : peBodyFatClassHtml(Number(bfInput.value), age, student.sex);
+  }
+  bfInput?.addEventListener('input', bfRenderClass);
 
   const workNeeds = new Set();
   container.querySelectorAll('[data-work]').forEach((btn) => {
@@ -593,4 +615,4 @@ function peAfterRender(container) {
 window.PhysicalEvaluationView = { renderHtml: peRenderHtml, bindEvents: peBindEvents, afterRender: peAfterRender };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.21.0';
+(window.MP_BUILD = window.MP_BUILD || {})['physical-evaluation.js'] = 'v1.21.1';

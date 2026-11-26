@@ -180,6 +180,29 @@ function sfCompute(input) {
   return out;
 }
 
+// Classificação do % de gordura — Gallagher et al. (2000), Tabela 4: faixas de adultos de 20 a 79
+// anos derivadas dos cortes de IMC 18,5 / 25 / 30 (brancos e afro-americanos). Colunas por faixa
+// de idade: [idade mín, idade máx, início da faixa saudável, início do sobrepeso, início da obesidade].
+// Atenção: os "graus I, II e III" de obesidade são categorias do IMC, não do % de gordura.
+const SF_BF_TABLE = {
+  F: [[20, 39, 21, 33, 39], [40, 59, 23, 34, 40], [60, 79, 24, 36, 42]],
+  M: [[20, 39, 8, 20, 25], [40, 59, 11, 22, 28], [60, 79, 13, 25, 30]],
+};
+const SF_BF_REF = 'Gallagher et al. (2000), adultos de 20 a 79 anos; faixas equivalentes aos cortes de IMC 18,5 / 25 / 30.';
+
+function sfClassifyBodyFat(percent, age, sex) {
+  if (percent == null || !Number.isFinite(percent) || age == null) return null;
+  const row = SF_BF_TABLE[sfSex(sex)].find((r) => age >= r[0] && age <= r[1]);
+  if (!row) return null;
+  const [, , low, over, obese] = row;
+  let label, level;
+  if (percent < low) { label = 'Abaixo do ideal'; level = 'moderado'; }
+  else if (percent < over) { label = 'Saudável'; level = 'leve'; }
+  else if (percent < obese) { label = 'Sobrepeso'; level = 'moderado'; }
+  else { label = 'Obesidade'; level = 'alto'; }
+  return { label, level, healthyRange: `${low}% a ${over - 1}%`, obeseFrom: obese, ref: SF_BF_REF };
+}
+
 function sfCrossMethodNote(records) {
   const methods = new Set(records.filter((r) => r.bodyFatPercent != null).map((r) => r.skinfold ? 'sf:' + r.skinfold.protocolId : 'bio'));
   return methods.size > 1;
@@ -188,8 +211,8 @@ function sfCrossMethodNote(records) {
 window.Skinfold = {
   SITES: SF_SITES, TECHNIQUE: SF_TECHNIQUE, CONVERSIONS: SF_CONVERSIONS, PROTOCOLS: SF_PROTOCOLS,
   protocol: sfProtocol, protocolsFor: sfProtocolsFor, suggest: sfSuggest, siteValue: sfSiteValue,
-  compute: sfCompute, mixedMethods: sfCrossMethodNote,
+  compute: sfCompute, mixedMethods: sfCrossMethodNote, classifyBodyFat: sfClassifyBodyFat, BF_REF: SF_BF_REF,
 };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['skinfold.js'] = 'v1.21.0';
+(window.MP_BUILD = window.MP_BUILD || {})['skinfold.js'] = 'v1.21.1';

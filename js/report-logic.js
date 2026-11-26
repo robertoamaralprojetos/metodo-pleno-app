@@ -155,7 +155,8 @@ function reportPhysical(physicalEvaluations, to) {
     { label: 'Gordura corporal', unit: '%', prev: prev ? prev.bodyFatPercent : null, cur: cur.bodyFatPercent },
     { label: 'Abdômen', unit: 'cm', prev: prev && prev.circumferences ? prev.circumferences.abdomen : null, cur: cur.circumferences ? cur.circumferences.abdomen : null },
   ].filter((r) => r.cur != null);
-  return { currentDate: cur.date, previousDate: prev ? prev.date : null, rows };
+  const cls = (r) => (r && window.Skinfold ? window.Skinfold.classifyBodyFat(r.bodyFatPercent, r.age, r.sex) : null);
+  return { currentDate: cur.date, previousDate: prev ? prev.date : null, rows, bodyFatClass: cls(cur), bodyFatClassPrev: cls(prev) };
 }
 
 // ---------- Bem-estar (check-ins) ----------
@@ -231,4 +232,4 @@ function computeReport(input) {
 window.ReportLogic = { REPORT_MILESTONES, reportPeriod, reportFrequency, reportStrength, reportFunctional, reportPhysical, reportWellbeing, reportEffort, reportAchievements, computeReport, rAddDays, rDiff };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.20.0';
+(window.MP_BUILD = window.MP_BUILD || {})['report-logic.js'] = 'v1.21.1';

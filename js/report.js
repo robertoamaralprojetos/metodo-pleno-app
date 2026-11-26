@@ -258,7 +258,8 @@ function repHtml(model, opts) {
       <td style="padding:5px 8px;border-bottom:1px solid #eee;">${r.prev != null ? repFmt(r.prev) + ' ' + r.unit : '—'}</td>
       <td style="padding:5px 8px;border-bottom:1px solid #eee;"><strong>${repFmt(r.cur)} ${r.unit}</strong></td></tr>`).join('');
     parts.push(repSectionBox('Avaliação física', `<div style="color:#666;margin-bottom:6px;">Avaliação de ${Utils.formatDateBR(ph.currentDate)}${ph.previousDate ? ` (comparada com ${Utils.formatDateBR(ph.previousDate)})` : ''}.</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:#666;"><th style="padding:5px 8px;">Medida</th><th style="padding:5px 8px;">Antes</th><th style="padding:5px 8px;">Agora</th></tr></thead><tbody>${rows}</tbody></table>`));
+      <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:#666;"><th style="padding:5px 8px;">Medida</th><th style="padding:5px 8px;">Antes</th><th style="padding:5px 8px;">Agora</th></tr></thead><tbody>${rows}</tbody></table>
+      ${ph.bodyFatClass ? `<div style="margin-top:8px;">Percentual de gordura: <strong>${repEsc(ph.bodyFatClass.label)}</strong> (faixa saudável para a idade e o sexo: ${ph.bodyFatClass.healthyRange})${ph.bodyFatClassPrev && ph.bodyFatClassPrev.label !== ph.bodyFatClass.label ? `, antes: ${repEsc(ph.bodyFatClassPrev.label)}` : ''}.<div style="font-size:11px;color:#777;margin-top:2px;">Referência: ${repEsc(ph.bodyFatClass.ref)}</div></div>` : ''}`));
   }
 
   // Postura
@@ -477,4 +478,4 @@ function repBindEvents(container) {
 window.ReportView = { renderHtml: repRenderHtml, bindEvents: repBindEvents, whatsText: repWhatsText, buildModel: repBuildModel, html: repHtml };
 
 // Carimbo de versão (verificação de integridade do app — ver app.js)
-(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.20.0';
+(window.MP_BUILD = window.MP_BUILD || {})['report.js'] = 'v1.21.1';
